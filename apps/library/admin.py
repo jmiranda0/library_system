@@ -1,10 +1,10 @@
 from django.contrib import admin
-
+from unfold.admin import ModelAdmin
 from .models import AuditLog, Book, Loan, Student
 
 
 @admin.register(Book)
-class BookAdmin(admin.ModelAdmin):
+class BookAdmin(ModelAdmin):
     """Configuración del panel de administración para el modelo Book."""
 
     list_display = ('title', 'author', 'total_stock', 'available_stock')
@@ -18,7 +18,7 @@ class BookAdmin(admin.ModelAdmin):
 
 
 @admin.register(Student)
-class StudentAdmin(admin.ModelAdmin):
+class StudentAdmin(ModelAdmin):
     """Configuración del panel de administración para el modelo Student."""
 
     list_display = ('get_full_name', 'personal_id', 'career', 'academic_year', 'is_blacklisted')
@@ -32,7 +32,7 @@ class StudentAdmin(admin.ModelAdmin):
 
 
 @admin.register(Loan)
-class LoanAdmin(admin.ModelAdmin):
+class LoanAdmin(ModelAdmin):
     """Configuración del panel de administración para el modelo Loan."""
 
     list_display = ('book', 'student', 'loan_date', 'expected_return_date', 'status')
@@ -43,7 +43,7 @@ class LoanAdmin(admin.ModelAdmin):
 
 
 @admin.register(AuditLog)
-class AuditLogAdmin(admin.ModelAdmin):
+class AuditLogAdmin(ModelAdmin):
     """Configuración del panel de administración para el modelo AuditLog (solo lectura)."""
 
     list_display = ('timestamp', 'user_actor', 'action', 'ip_address')

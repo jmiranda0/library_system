@@ -40,6 +40,8 @@ ALLOWED_HOSTS = []
 # Application definition
 
 INSTALLED_APPS = [
+    'unfold',
+    'unfold.contrib.filters',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -129,3 +131,10 @@ STATIC_URL = 'static/'
 
 # Tipo de campo de clave primaria por defecto para todas las aplicaciones
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
+
+
+UNFOLD = {
+    "SITE_TITLE": "Biblioteca Universitaria",
+    "SITE_HEADER": "Sistema de Gestión",
+    "SITE_URL": "/",
+}
