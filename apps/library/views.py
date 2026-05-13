@@ -45,13 +45,29 @@ class CatalogView(ListView):
     paginate_by = 12
 
     def get_queryset(self):
-        """Filtra libros por búsqueda de texto si se proporciona el parámetro 'q'."""
+        """
+        Filtra libros usando el motor de Búsqueda Semántica de IA si hay una consulta 'q'.
+        Si la IA falla, la función 'perform_semantic_search' usa su fallback léxico.
+        """
         queryset = Book.objects.all()
         query = self.request.GET.get('q', '').strip()
+        
         if query:
-            queryset = queryset.filter(
-                Q(title__icontains=query) | Q(author__icontains=query)
-            )
+            # Importamos la función inteligente del agente
+            from apps.search.agent import perform_semantic_search
+            
+            # 1. Llamamos a la IA (que devolverá los IDs ordenados por relevancia o usará Fallback)
+            book_ids = perform_semantic_search(query)
+            
+            # 2. Si encontró algo, filtramos y ordenamos según lo decidió la IA
+            if book_ids:
+                from django.db.models import Case, When
+                preserved_order = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(book_ids)])
+                queryset = Book.objects.filter(id__in=book_ids).order_by(preserved_order)
+            else:
+                # Si la lista está vacía, no hubo coincidencias
+                queryset = Book.objects.none()
+                
         return queryset
 
     def get_context_data(self, **kwargs):

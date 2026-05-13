@@ -38,6 +38,11 @@ DEBUG = True
 
 ALLOWED_HOSTS = []
 
+# ==========================================
+# Variables de entorno IA (Regla 6.1 llm_context)
+# ==========================================
+GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+
 
 # Application definition
 
