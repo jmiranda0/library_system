@@ -1,0 +1,57 @@
+{# Tarjeta reutilizable para mostrar un préstamo. Variables: prestamo, estado #}
+<div class="flex items-start gap-4 p-4 bg-[#1e293b] border rounded-xl transition
+  {% if estado == 'vencido' %}border-red-900/50 bg-red-950/10
+  {% elif estado == 'activo' %}border-slate-700/80
+  {% else %}border-slate-800/60 opacity-70{% endif %}">
+
+  {# Miniatura del libro #}
+  <a href="{% url 'libro-detalle' prestamo.book.pk %}" class="shrink-0">
+    <div class="w-12 h-16 rounded-lg overflow-hidden bg-[#0f172a] border border-slate-700/60">
+      {% if prestamo.book.cover_image %}
+        <img src="{{ prestamo.book.cover_image }}" alt="" class="w-full h-full object-cover" />
+      {% else %}
+        <div class="w-full h-full flex items-center justify-center">
+          <span class="text-xl font-bold text-slate-600">{{ prestamo.book.title|slice:":1"|upper }}</span>
+        </div>
+      {% endif %}
+    </div>
+  </a>
+
+  {# Información del préstamo #}
+  <div class="flex-1 min-w-0">
+    <a href="{% url 'libro-detalle' prestamo.book.pk %}"
+      class="text-sm font-semibold text-slate-200 hover:text-indigo-300 transition line-clamp-1">
+      {{ prestamo.book.title }}
+    </a>
+    <p class="text-xs text-slate-500 mt-0.5">{{ prestamo.book.author }}</p>
+
+    <div class="flex flex-wrap items-center gap-x-4 gap-y-1 mt-2 text-[11px] text-slate-500">
+      <span>Prestado: <span class="text-slate-400">{{ prestamo.loan_date|date:"d/m/Y" }}</span></span>
+      {% if estado == 'devuelto' %}
+        <span>Devuelto: <span class="text-slate-400">{{ prestamo.actual_return_date|date:"d/m/Y" }}</span></span>
+      {% else %}
+        <span>Devolver antes de: <span class="{% if estado == 'vencido' %}text-red-400 font-semibold{% else %}text-slate-400{% endif %}">
+          {{ prestamo.expected_return_date|date:"d/m/Y" }}
+        </span></span>
+      {% endif %}
+    </div>
+  </div>
+
+  {# Badge de estado #}
+  <div class="shrink-0">
+    {% if estado == 'activo' %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/60 text-emerald-400 border border-emerald-800/50">
+        Activo
+      </span>
+    {% elif estado == 'vencido' %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-950/60 text-red-400 border border-red-800/50">
+        Vencido
+      </span>
+    {% else %}
+      <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-800 text-slate-500 border border-slate-700">
+        Devuelto
+      </span>
+    {% endif %}
+  </div>
+
+</div>

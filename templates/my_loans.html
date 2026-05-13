@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Mis Préstamos — Biblioteca Universitaria{% endblock %}
+{% block meta_description %}Consulta el estado de tus préstamos activos, vencidos y devueltos.{% endblock %}
+
+{% block nav_prestamos_class %}text-indigo-400 bg-indigo-950/40 hover:bg-indigo-950/60{% endblock %}
+
+{% block content %}
+
+{# ── Encabezado ── #}
+<div class="mb-8">
+  <h1 class="text-2xl font-semibold text-slate-100 tracking-tight">Mis Préstamos</h1>
+  <p class="text-sm text-slate-400 mt-1">
+    Historial de libros prestados de tu cuenta.
+  </p>
+</div>
+
+{# ── Tarjetas de resumen ── #}
+<div class="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
+  <div class="p-4 bg-[#1e293b] border border-emerald-900/40 rounded-xl">
+    <p class="text-xs uppercase tracking-wider text-slate-500 mb-1">Activos</p>
+    <p class="text-3xl font-bold text-emerald-400">{{ prestamos_activos.count }}</p>
+  </div>
+  <div class="p-4 bg-[#1e293b] border border-red-900/40 rounded-xl">
+    <p class="text-xs uppercase tracking-wider text-slate-500 mb-1">Vencidos</p>
+    <p class="text-3xl font-bold text-red-400">{{ prestamos_vencidos.count }}</p>
+  </div>
+  <div class="p-4 bg-[#1e293b] border border-slate-700/80 rounded-xl">
+    <p class="text-xs uppercase tracking-wider text-slate-500 mb-1">Devueltos</p>
+    <p class="text-3xl font-bold text-slate-300">{{ prestamos_devueltos.count }}</p>
+  </div>
+</div>
+
+{# ── Sección: Préstamos vencidos (primero, son urgentes) ── #}
+{% if prestamos_vencidos %}
+<section class="mb-8">
+  <h2 class="flex items-center gap-2 text-sm font-semibold text-red-400 uppercase tracking-wider mb-3">
+    <span class="w-2 h-2 rounded-full bg-red-400"></span>
+    Vencidos — Devuelve estos libros cuanto antes
+  </h2>
+  <div class="space-y-3">
+    {% for prestamo in prestamos_vencidos %}
+    {% include "partials/loan_card.html" with prestamo=prestamo estado="vencido" %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# ── Sección: Préstamos activos ── #}
+{% if prestamos_activos %}
+<section class="mb-8">
+  <h2 class="flex items-center gap-2 text-sm font-semibold text-emerald-400 uppercase tracking-wider mb-3">
+    <span class="w-2 h-2 rounded-full bg-emerald-400"></span>
+    Activos
+  </h2>
+  <div class="space-y-3">
+    {% for prestamo in prestamos_activos %}
+    {% include "partials/loan_card.html" with prestamo=prestamo estado="activo" %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# ── Sección: Devueltos ── #}
+{% if prestamos_devueltos %}
+<section class="mb-8">
+  <h2 class="flex items-center gap-2 text-sm font-semibold text-slate-500 uppercase tracking-wider mb-3">
+    <span class="w-2 h-2 rounded-full bg-slate-500"></span>
+    Historial devueltos
+  </h2>
+  <div class="space-y-3">
+    {% for prestamo in prestamos_devueltos %}
+    {% include "partials/loan_card.html" with prestamo=prestamo estado="devuelto" %}
+    {% endfor %}
+  </div>
+</section>
+{% endif %}
+
+{# ── Estado vacío ── #}
+{% if not prestamos_activos and not prestamos_vencidos and not prestamos_devueltos %}
+<div class="text-center py-20">
+  <div class="w-16 h-16 mx-auto mb-5 bg-[#1e293b] border border-slate-700 rounded-2xl flex items-center justify-center">
+    <svg xmlns="http://www.w3.org/2000/svg" class="w-8 h-8 text-slate-600" fill="none" viewBox="0 0 24 24" stroke-width="1.5" stroke="currentColor">
+      <path stroke-linecap="round" stroke-linejoin="round"
+        d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
+    </svg>
+  </div>
+  <h3 class="text-lg font-medium text-slate-400 mb-2">No tienes préstamos</h3>
+  <p class="text-sm text-slate-600 mb-6">Visita el catálogo y solicita tu primer libro a un bibliotecario.</p>
+  <a href="{% url 'catalogo' %}" id="btn-ir-catalogo-empty"
+    class="inline-flex items-center gap-2 px-5 py-2.5 rounded-lg bg-indigo-600 hover:bg-indigo-500 text-sm font-semibold text-white transition hover:shadow-lg hover:shadow-indigo-500/25">
+    Explorar catálogo
+  </a>
+</div>
+{% endif %}
+
+{% endblock content %}

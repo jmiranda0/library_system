@@ -216,3 +216,15 @@ class AuditLog(models.Model):
         verbose_name = 'Registro de Auditoría'
         verbose_name_plural = 'Registros de Auditoría'
         ordering = ['-timestamp']
+
+
+class Librarian(User):
+    """
+    Modelo Proxy para gestionar Bibliotecarios de forma independiente en el Admin.
+    No crea una tabla nueva, solo proporciona una interfaz diferente sobre el modelo User.
+    """
+
+    class Meta:
+        proxy = True
+        verbose_name = 'Bibliotecario'
+        verbose_name_plural = 'Bibliotecarios'

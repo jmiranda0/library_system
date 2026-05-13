@@ -13,6 +13,8 @@ https://docs.djangoproject.com/en/6.0/ref/settings/
 import os
 from pathlib import Path
 
+from django.urls import reverse_lazy
+
 from dotenv import load_dotenv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -48,8 +50,10 @@ INSTALLED_APPS = [
     'django.contrib.sessions',
     'django.contrib.messages',
     'django.contrib.staticfiles',
+    'tailwind',
     "apps.library",
     "apps.search",
+    "theme",
 ]
 
 MIDDLEWARE = [
@@ -67,7 +71,7 @@ ROOT_URLCONF = 'config.urls'
 TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
-        'DIRS': [],
+        'DIRS': [BASE_DIR / 'templates'],
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
@@ -92,7 +96,6 @@ DATABASES = {
     }
 }
 
-
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
 
@@ -111,7 +114,6 @@ AUTH_PASSWORD_VALIDATORS = [
     },
 ]
 
-
 # Internationalization
 # https://docs.djangoproject.com/en/6.0/topics/i18n/
 
@@ -123,7 +125,6 @@ USE_I18N = True
 
 USE_TZ = True
 
-
 # Static files (CSS, JavaScript, Images)
 # https://docs.djangoproject.com/en/6.0/howto/static-files/
 
@@ -132,9 +133,75 @@ STATIC_URL = 'static/'
 # Tipo de campo de clave primaria por defecto para todas las aplicaciones
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
-
 UNFOLD = {
     "SITE_TITLE": "Biblioteca Universitaria",
     "SITE_HEADER": "Sistema de Gestión",
     "SITE_URL": "/",
+    "SIDEBAR": {
+        # Muestra barra de búsqueda en la navegación lateral
+        "show_search": True,
+        # Desactivamos el enlace "Ver todas las aplicaciones" para forzar el menú controlado
+        "show_all_applications": False,
+        "navigation": [
+            {
+                "title": "Gestión Bibliotecaria",
+                "items": [
+                    {
+                        "title": "Libros",
+                        "icon": "menu_book",
+                        "link": reverse_lazy("admin:library_book_changelist"),
+                    },
+                    {
+                        "title": "Préstamos",
+                        "icon": "bookmark",
+                        "link": reverse_lazy("admin:library_loan_changelist"),
+                    },
+                    {
+                        "title": "Estudiantes",
+                        "icon": "person",
+                        "link": reverse_lazy("admin:library_student_changelist"),
+                    },
+                    {
+                        "title": "Registro de Auditoría",
+                        "icon": "history",
+                        "link": reverse_lazy("admin:library_auditlog_changelist"),
+                    },
+                ],
+            },
+            {
+                # Esta sección SOLO es visible para superusuarios (Administradores)
+                "title": "Administración del Sistema",
+                "items": [
+                    {
+                        "title": "Usuarios",
+                        "icon": "manage_accounts",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": "Bibliotecarios",
+                        "icon": "badge",
+                        "link": reverse_lazy("admin:library_librarian_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": "Grupos y Roles",
+                        "icon": "group",
+                        "link": reverse_lazy("admin:auth_group_changelist"),
+                        "permission": lambda request: request.user.is_superuser,
+                    },
+                ],
+            },
+        ],
+    },
 }
+
+# Configuración de Tailwind CSS
+TAILWIND_APP_NAME = 'theme'
+INTERNAL_IPS = ['127.0.0.1']
+NPM_BIN_PATH = r'C:\Program Files\nodejs\npm.cmd'
+
+# Redirecciones de autenticación
+LOGIN_URL = '/'
+LOGIN_REDIRECT_URL = '/catalogo/'
+LOGOUT_REDIRECT_URL = '/'
