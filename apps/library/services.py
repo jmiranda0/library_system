@@ -13,6 +13,7 @@ Ventajas:
 
 from datetime import date
 
+from django.core.exceptions import ValidationError
 from django.utils import timezone
 
 from .models import AuditLog, Book, Loan, Student
@@ -113,11 +114,12 @@ def return_loan(
         La instancia del Loan actualizada.
 
     Raises:
-        ValueError: Si el préstamo ya fue devuelto anteriormente.
+        ValidationError: Si el préstamo ya fue devuelto anteriormente.
     """
-    if loan.status == Loan.LoanStatus.RETURNED:
-        raise ValueError(
-            f"El préstamo #{loan.pk} ya fue devuelto anteriormente. "
+    # Si el préstamo ya tiene una fecha de devolución, es que ya se procesó antes
+    if loan.status == Loan.LoanStatus.RETURNED and loan.actual_return_date is not None:
+        raise ValidationError(
+            f"El préstamo #{loan.pk} ya fue devuelto anteriormente el {loan.actual_return_date}. "
             "No se puede procesar una devolución duplicada."
         )
 

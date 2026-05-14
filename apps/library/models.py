@@ -79,7 +79,7 @@ class Student(models.Model):
     academic_year = models.PositiveSmallIntegerField(
         validators=[
             MinValueValidator(1),
-            MaxValueValidator(6),
+            MaxValueValidator(5),
         ],
         verbose_name='Año académico',
         help_text='Año que cursa actualmente (1 a 6).',
@@ -163,7 +163,7 @@ class Loan(models.Model):
             errors['student'] = 'El estudiante se encuentra en lista negra y no puede solicitar préstamos.'
 
         # Regla 3: La fecha de devolución debe ser futura respecto al préstamo
-        if self.expected_return_date:
+        if not self.pk and self.expected_return_date:
             reference_date: date = self.loan_date if self.loan_date else date.today()
             if self.expected_return_date <= reference_date:
                 errors['expected_return_date'] = (
@@ -174,7 +174,15 @@ class Loan(models.Model):
             raise ValidationError(errors)
 
     def save(self, *args, **kwargs) -> None:
-        """Fuerza la ejecución de clean() antes de cada guardado."""
+        """Calcula el estado automáticamente y valida reglas antes de guardar."""
+        from datetime import date
+        if self.actual_return_date:
+            self.status = self.LoanStatus.RETURNED
+        else:
+            if self.expected_return_date and self.expected_return_date < date.today():
+                self.status = self.LoanStatus.OVERDUE
+            else:
+                self.status = self.LoanStatus.ACTIVE
         self.full_clean()
         super().save(*args, **kwargs)
 
