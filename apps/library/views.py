@@ -42,7 +42,7 @@ class CatalogView(ListView):
     model = Book
     template_name = 'catalog.html'
     context_object_name = 'books'
-    paginate_by = 12
+    paginate_by = 16
 
     def get_queryset(self):
         """
