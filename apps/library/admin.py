@@ -6,6 +6,13 @@ from .models import AuditLog, Book, Loan, Student, Librarian
 from .forms import StudentAdminForm, LibrarianAdminForm
 from .services import _write_audit_log, create_loan, return_loan
 
+
+from apps.library.models import Book, Loan, Student
+from django.contrib.auth.models import User
+from django.db.models.functions import TruncMonth
+from django.db.models import Count
+import json
+
 # Unregister default admin to replace with Unfold
 admin.site.unregister(User)
 admin.site.unregister(Group)
@@ -257,3 +264,79 @@ class LibrarianAdmin(AuditMixin, ModelAdmin):
     @admin.display(description='Nombre completo')
     def get_full_name_display(self, obj: Librarian) -> str:
         return obj.get_full_name()
+
+
+def dashboard_callback(request, context):
+    
+    print("DEBUG — dashboard_callback ejecutado")
+    print(f"DEBUG — context keys: {list(context.keys())}")
+    stats = [
+        {
+            "title": "Libros en Catálogo",
+            "metric": Book.objects.count(),
+            "icon": "menu_book",
+            "color": "indigo",
+        },
+        {
+            "title": "Préstamos Activos",
+            "metric": Loan.objects.filter(status="ACTIVE").count(),
+            "icon": "bookmark",
+            "color": "emerald",
+        },
+        {
+            "title": "Préstamos Vencidos",
+            "metric": Loan.objects.filter(status="OVERDUE").count(),
+            "icon": "warning",
+            "color": "red",
+        },
+        {
+            "title": "En Lista Negra",
+            "metric": Student.objects.filter(is_blacklisted=True).count(),
+            "icon": "block",
+            "color": "orange",
+        },
+    ]
+
+    if request.user.is_superuser:
+        stats += [
+            {
+                "title": "Total Estudiantes",
+                "metric": Student.objects.count(),
+                "icon": "person",
+                "color": "blue",
+            },
+            {
+                "title": "Bibliotecarios",
+                "metric": User.objects.filter(
+                    groups__name="Bibliotecarios"
+                ).count(),
+                "icon": "badge",
+                "color": "purple",
+            },
+            {
+                "title": "Total Usuarios",
+                "metric": User.objects.count(),
+                "icon": "manage_accounts",
+                "color": "slate",
+            },
+        ]
+
+    context["stats"] = stats
+
+    prestamos_por_mes = (
+    Loan.objects.annotate(mes=TruncMonth('loan_date'))
+    .values('mes')
+    .annotate(total=Count('id'))
+    .order_by('mes')
+    )
+
+    labels = []
+    data = []
+    for entry in prestamos_por_mes:
+        labels.append(entry['mes'].strftime('%b %Y'))
+        data.append(entry['total'])
+
+    context["chart_labels"] = json.dumps(labels, ensure_ascii=False)
+    context["chart_data"] = json.dumps(data)
+
+    return context

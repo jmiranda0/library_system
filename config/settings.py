@@ -79,13 +79,19 @@ TEMPLATES = [
     {
         'BACKEND': 'django.template.backends.django.DjangoTemplates',
         'DIRS': [BASE_DIR / 'templates'],
-        'APP_DIRS': True,
+        'APP_DIRS': False,
         'OPTIONS': {
             'context_processors': [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
                 'apps.library.context_processors.student_profile',
+            ],
+            'loaders': [
+                # Primero busca en nuestra carpeta templates/
+                'django.template.loaders.filesystem.Loader',
+                # Luego en los templates de las apps instaladas
+                'django.template.loaders.app_directories.Loader',
             ],
         },
     },
@@ -145,10 +151,24 @@ UNFOLD = {
     "SITE_TITLE": "Biblioteca Universitaria",
     "SITE_HEADER": "Sistema de Gestión",
     "SITE_URL": "/",
+    "COLORS": {
+        "primary": {
+            "50": "238 242 255",
+            "100": "224 231 255",
+            "200": "199 210 254",
+            "300": "165 180 252",
+            "400": "129 140 248",
+            "500": "99 102 241",
+            "600": "79 70 229",
+            "700": "67 56 202",
+            "800": "55 48 163",
+            "900": "49 46 129",
+            "950": "30 27 75",
+        },
+    },
+    "DASHBOARD_CALLBACK": "apps.library.admin.dashboard_callback",
     "SIDEBAR": {
-        # Muestra barra de búsqueda en la navegación lateral
         "show_search": True,
-        # Desactivamos el enlace "Ver todas las aplicaciones" para forzar el menú controlado
         "show_all_applications": False,
         "navigation": [
             {
@@ -177,7 +197,6 @@ UNFOLD = {
                 ],
             },
             {
-                # Esta sección SOLO es visible para superusuarios (Administradores)
                 "title": "Administración del Sistema",
                 "items": [
                     {
