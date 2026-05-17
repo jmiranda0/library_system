@@ -3,7 +3,7 @@
 {% block title %}Catálogo de Libros — Biblioteca Universitaria{% endblock %}
 {% block meta_description %}
 Explora el catálogo completo de libros disponibles en la Biblioteca Universitaria.
-{%endblock%}
+{% endblock %}
 
 {% block nav_catalogo_class %}text-indigo-400 bg-indigo-950/40 hover:bg-indigo-950/60{% endblock %}
 
@@ -11,14 +11,13 @@ Explora el catálogo completo de libros disponibles en la Biblioteca Universitar
 
 {# ── Encabezado de página ── #}
 <div class="mb-8">
-  <h1 class="text-2xl font-semibold text-slate-100 tracking-tight">Catálogo de Libros</h1>
-  <p class="text-sm text-slate-400 mt-1">
+  <h1 class="text-2xl font-semibold tracking-tight text-slate-100">Catálogo de Libros</h1>
+  <p class="mt-1 text-sm text-slate-400">
     {% if query %}
-    Resultados para "<span class="text-slate-200">{{ query }}</span>"
-    — {{ books.paginator.count }} libro{{ books.paginator.count|pluralize }} encontrado{{
-    books.paginator.count|pluralize }}
+      Resultados para "<span class="text-slate-200">{{ query }}</span>"
+      — {{ results|length }} libro{{ results|length|pluralize }} encontrado{{ results|length|pluralize }}
     {% else %}
-    {{ books.paginator.count }} libro{{ books.paginator.count|pluralize }} en el catálogo
+      {{ results|length }} libro{{ results|length|pluralize }} en el catálogo
     {% endif %}
   </p>
 </div>
@@ -28,9 +27,8 @@ Explora el catálogo completo de libros disponibles en la Biblioteca Universitar
   <div class="relative max-w-full">
     <input type="text" name="q" id="buscador" value="{{ query }}" placeholder="Buscar por título o autor..."
       class="w-full bg-[#1e293b] border border-slate-700 rounded-xl text-[15px] text-slate-100 py-3 pl-12 pr-16 placeholder-slate-500 outline-none transition focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10" />
-    {# Ícono lupa #}
     <svg xmlns="http://www.w3.org/2000/svg"
-      class="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-500 pointer-events-none" fill="none"
+      class="absolute w-5 h-5 -translate-y-1/2 pointer-events-none left-4 top-1/2 text-slate-500" fill="none"
       viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round"
         d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
@@ -42,7 +40,7 @@ Explora el catálogo completo de libros disponibles en la Biblioteca Universitar
   </div>
   {% if query %}
   <a href="{% url 'catalogo' %}"
-    class="inline-flex items-center gap-1 mt-2 text-xs text-slate-500 hover:text-slate-300 transition">
+    class="inline-flex items-center gap-1 mt-2 text-xs transition text-slate-500 hover:text-slate-300">
     <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke-width="2"
       stroke="currentColor">
       <path stroke-linecap="round" stroke-linejoin="round" d="M6 18 18 6M6 6l12 12" />
@@ -53,21 +51,19 @@ Explora el catálogo completo de libros disponibles en la Biblioteca Universitar
 </form>
 
 {# ── Grid de libros ── #}
-{% if books %}
-<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
-  {% for libro in books %}
+{% if results %}
+<div class="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+  {% for libro, porcentaje in results %}
   <a href="{% url 'libro-detalle' libro.pk %}" id="libro-{{ libro.pk }}"
     class="group bg-[#1e293b] border border-slate-700/80 rounded-xl overflow-hidden hover:border-indigo-500/40 hover:shadow-xl hover:shadow-indigo-950/30 transition-all flex flex-col">
 
-    {# Portada o placeholder #}
     <div class="relative h-44 bg-[#0f172a] overflow-hidden shrink-0">
       {% if libro.cover_image %}
       <img src="{{ libro.cover_image }}" alt="Portada de {{ libro.title }}"
-        class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300" />
+        class="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105" />
       {% else %}
-      {# Placeholder con inicial del título #}
-      <div class="w-full h-full flex items-center justify-center bg-gradient-to-br from-slate-800 to-slate-900">
-        <span class="text-5xl font-bold text-slate-600 select-none group-hover:text-indigo-600/50 transition-colors">
+      <div class="flex items-center justify-center w-full h-full bg-gradient-to-br from-slate-800 to-slate-900">
+        <span class="text-5xl font-bold transition-colors select-none text-slate-600 group-hover:text-indigo-600/50">
           {{ libro.title|slice:":1"|upper }}
         </span>
       </div>
@@ -76,36 +72,42 @@ Explora el catálogo completo de libros disponibles en la Biblioteca Universitar
       {# Badge de disponibilidad #}
       <div class="absolute top-2.5 right-2.5">
         {% if libro.available_stock > 2 %}
-        <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 backdrop-blur-sm">
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-950/80 text-emerald-400 border border-emerald-800/60 backdrop-blur-sm">
           <span class="w-1.5 h-1.5 rounded-full bg-emerald-400"></span>
           Disponible
         </span>
         {% elif libro.available_stock > 0 %}
-        <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/80 text-amber-400 border border-amber-800/60 backdrop-blur-sm">
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-amber-950/80 text-amber-400 border border-amber-800/60 backdrop-blur-sm">
           <span class="w-1.5 h-1.5 rounded-full bg-amber-400"></span>
           Últimas unidades
         </span>
         {% else %}
-        <span
-          class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-950/80 text-red-400 border border-red-800/60 backdrop-blur-sm">
+        <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-red-950/80 text-red-400 border border-red-800/60 backdrop-blur-sm">
           <span class="w-1.5 h-1.5 rounded-full bg-red-400"></span>
           No disponible
         </span>
         {% endif %}
       </div>
+
+      {# Badge de porcentaje (solo en búsquedas) #}
+      {% if porcentaje %}
+      <div class="absolute top-2.5 left-2.5">
+        <span class="inline-flex items-center px-2 py-0.5 rounded-full text-[11px] font-bold backdrop-blur-sm
+          {% if porcentaje >= 80 %}bg-indigo-950/80 text-indigo-300 border border-indigo-700/60
+          {% elif porcentaje >= 50 %}bg-slate-900/80 text-slate-300 border border-slate-600/60
+          {% else %}bg-slate-900/80 text-slate-500 border border-slate-700/60{% endif %}">
+          {{ porcentaje }}% coincidencia
+        </span>
+      </div>
+      {% endif %}
     </div>
 
-    {# Info del libro #}
-    <div class="p-4 flex flex-col flex-1">
-      <h2
-        class="text-sm font-semibold text-slate-100 leading-snug line-clamp-2 group-hover:text-indigo-300 transition-colors">
+    <div class="flex flex-col flex-1 p-4">
+      <h2 class="text-sm font-semibold leading-snug transition-colors text-slate-100 line-clamp-2 group-hover:text-indigo-300">
         {{ libro.title }}
       </h2>
-      <p class="text-xs text-slate-500 mt-1 truncate">{{ libro.author }}</p>
-
-      <div class="mt-auto pt-3 flex items-center justify-between">
+      <p class="mt-1 text-xs truncate text-slate-500">{{ libro.author }}</p>
+      <div class="flex items-center justify-between pt-3 mt-auto">
         <span class="text-[11px] text-slate-600">
           {{ libro.available_stock }}/{{ libro.total_stock }} ejemplar{{ libro.total_stock|pluralize:"es" }}
         </span>
@@ -122,23 +124,32 @@ Explora el catálogo completo de libros disponibles en la Biblioteca Universitar
   {% endfor %}
 </div>
 
+{% else %}
+<div class="py-20 text-center">
+  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 mx-auto mb-4 text-slate-600" fill="none" viewBox="0 0 24 24"
+    stroke-width="1.5" stroke="currentColor">
+    <path stroke-linecap="round" stroke-linejoin="round"
+      d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
+  </svg>
+  <h3 class="mb-1 text-lg font-medium text-slate-400">No se encontraron libros</h3>
+  <p class="text-sm text-slate-600">Intenta con otro término de búsqueda.</p>
+</div>
+{% endif %}
+
 {# ── Paginación ── #}
 {% if is_paginated %}
-<nav class="flex flex-col sm:flex-row items-center justify-between gap-6 mt-12 py-6 border-t border-slate-800"
+<nav class="flex flex-col items-center justify-between gap-6 py-6 mt-12 border-t sm:flex-row border-slate-800"
   aria-label="Paginación">
-
-  {# Info de página actual #}
-  <div class="text-xs text-slate-500 order-2 sm:order-1">
-    Mostrando página <span class="text-slate-300 font-medium">{{ page_obj.number }}</span> de <span
-      class="text-slate-300 font-medium">{{ paginator.num_pages }}</span>
+  <div class="order-2 text-xs text-slate-500 sm:order-1">
+    Mostrando página <span class="font-medium text-slate-300">{{ page_obj.number }}</span>
+    de <span class="font-medium text-slate-300">{{ paginator.num_pages }}</span>
+    — {{ total }} resultado{{ total|pluralize }} en total
   </div>
-
-  {# Botones de control #}
-  <div class="flex items-center gap-2 order-1 sm:order-2">
+  <div class="flex items-center order-1 gap-2 sm:order-2">
     {% if page_obj.has_previous %}
     <a href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.previous_page_number }}"
-      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all duration-300 group">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 group-hover:-translate-x-1 transition-transform"
+      class="inline-flex items-center gap-2 px-3 py-2 transition-all border rounded-lg border-slate-700 text-slate-400 hover:text-slate-100 hover:border-indigo-500/50 hover:bg-indigo-500/10 group">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform group-hover:-translate-x-1"
         fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
       </svg>
@@ -146,47 +157,33 @@ Explora el catálogo completo de libros disponibles en la Biblioteca Universitar
     </a>
     {% endif %}
 
-    <div class="hidden md:flex items-center gap-1 mx-2">
+    <div class="items-center hidden gap-1 mx-2 md:flex">
       {% for num in paginator.page_range %}
-      {% if page_obj.number == num %}
-      <span
-        class="w-9 h-9 flex items-center justify-center rounded-lg text-xs font-bold bg-indigo-600 text-white shadow-lg shadow-indigo-500/20 ring-1 ring-indigo-400">
-        {{ num }}
-      </span>
-      {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %} 
-      <a href="?{% if query %}q={{ query }}&{% endif %}page={{ num }}"
-        class="w-9 h-9 flex items-center justify-center rounded-lg text-xs text-slate-400 border border-slate-700 hover:text-slate-100 hover:border-slate-500 hover:bg-slate-800 transition-all">
-        {{ num }}
-      </a>
-      {% endif %}
+        {% if page_obj.number == num %}
+        <span class="flex items-center justify-center text-xs font-bold text-white bg-indigo-600 rounded-lg w-9 h-9">
+          {{ num }}
+        </span>
+        {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+        <a href="?{% if query %}q={{ query }}&{% endif %}page={{ num }}"
+          class="flex items-center justify-center text-xs transition-all border rounded-lg w-9 h-9 text-slate-400 border-slate-700 hover:text-slate-100 hover:bg-slate-800">
+          {{ num }}
+        </a>
+        {% endif %}
       {% endfor %}
     </div>
 
     {% if page_obj.has_next %}
     <a href="?{% if query %}q={{ query }}&{% endif %}page={{ page_obj.next_page_number }}"
-      class="inline-flex items-center gap-2 px-3 py-2 rounded-lg border border-slate-700 text-slate-400 hover:text-slate-100 hover:border-indigo-500/50 hover:bg-indigo-500/10 transition-all duration-300 group">
+      class="inline-flex items-center gap-2 px-3 py-2 transition-all border rounded-lg border-slate-700 text-slate-400 hover:text-slate-100 hover:border-indigo-500/50 hover:bg-indigo-500/10 group">
       <span class="text-xs font-medium">Siguiente</span>
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 group-hover:translate-x-1 transition-transform" fill="none"
-        viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 transition-transform group-hover:translate-x-1"
+        fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
         <path stroke-linecap="round" stroke-linejoin="round" d="m8.25 4.5 7.5 7.5-7.5 7.5" />
       </svg>
     </a>
     {% endif %}
   </div>
 </nav>
-{% endif %}
-
-{% else %}
-{# Estado vacío #}
-<div class="text-center py-20">
-  <svg xmlns="http://www.w3.org/2000/svg" class="w-12 h-12 text-slate-600 mx-auto mb-4" fill="none" viewBox="0 0 24 24"
-    stroke-width="1.5" stroke="currentColor">
-    <path stroke-linecap="round" stroke-linejoin="round"
-      d="m21 21-5.197-5.197m0 0A7.5 7.5 0 1 0 5.196 5.196a7.5 7.5 0 0 0 10.607 10.607Z" />
-  </svg>
-  <h3 class="text-lg font-medium text-slate-400 mb-1">No se encontraron libros</h3>
-  <p class="text-sm text-slate-600">Intenta con otro término de búsqueda.</p>
-</div>
 {% endif %}
 
 {% endblock content %}

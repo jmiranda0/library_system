@@ -39,10 +39,12 @@ DEBUG = True
 ALLOWED_HOSTS = []
 
 # ==========================================
-# Variables de entorno IA (Regla 6.1 llm_context)
+# Variables de entorno IA
 # ==========================================
-GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-
+#GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+#DEEPSEEK_API_KEY= os.environ.get('DEEPSEEK_API_KEY')
+GROQ_API_KEY= os.environ.get('GROQ_API_KEY')
+SEARCH_AI_MODEL = os.environ.get('SEARCH_AI_MODEL', '') or None
 
 # Application definition
 
@@ -83,6 +85,7 @@ TEMPLATES = [
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
+                'apps.library.context_processors.student_profile',
             ],
         },
     },

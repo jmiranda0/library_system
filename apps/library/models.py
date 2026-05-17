@@ -21,7 +21,7 @@ class Book(models.Model):
     )
     synopsis = models.TextField(
         verbose_name='Sinopsis',
-        help_text='Resumen del contenido del libro. Será usado por el motor de búsqueda semántica.',
+        help_text='Resumen del contenido del libro. Usado por el motor de búsqueda semántica.',
     )
     total_stock = models.PositiveIntegerField(
         default=1,
@@ -82,7 +82,7 @@ class Student(models.Model):
             MaxValueValidator(5),
         ],
         verbose_name='Año académico',
-        help_text='Año que cursa actualmente (1 a 6).',
+        help_text='Año que cursa actualmente (1 a 5).',  # Corregido: CUJAE son 5 años
     )
     is_blacklisted = models.BooleanField(
         default=False,
@@ -103,7 +103,6 @@ class Loan(models.Model):
     """Modelo que representa un préstamo de libro a un estudiante."""
 
     class LoanStatus(models.TextChoices):
-        """Opciones de estado para un préstamo."""
         ACTIVE = 'ACTIVE', 'Activo'
         RETURNED = 'RETURNED', 'Devuelto'
         OVERDUE = 'OVERDUE', 'Vencido'
@@ -153,16 +152,13 @@ class Loan(models.Model):
         super().clean()
         errors: dict[str, str] = {}
 
-        # Regla 1: Verificar stock disponible (solo al crear, no al editar)
         if not self.pk and self.book_id:
             if self.book.available_stock <= 0:
                 errors['book'] = 'No hay stock disponible para este libro.'
 
-        # Regla 2: Verificar que el estudiante no esté en lista negra
         if self.student_id and self.student.is_blacklisted:
             errors['student'] = 'El estudiante se encuentra en lista negra y no puede solicitar préstamos.'
 
-        # Regla 3: La fecha de devolución debe ser futura respecto al préstamo
         if not self.pk and self.expected_return_date:
             reference_date: date = self.loan_date if self.loan_date else date.today()
             if self.expected_return_date <= reference_date:
@@ -175,15 +171,16 @@ class Loan(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         """Calcula el estado automáticamente y valida reglas antes de guardar."""
-        from datetime import date
-        if self.actual_return_date:
-            self.status = self.LoanStatus.RETURNED
-        else:
-            if self.expected_return_date and self.expected_return_date < date.today():
+        # Evitamos re-validar si solo se actualizan campos de estado (ej: devolución)
+        update_fields = kwargs.get('update_fields')
+        if not update_fields:
+            if self.actual_return_date:
+                self.status = self.LoanStatus.RETURNED
+            elif self.expected_return_date and self.expected_return_date < date.today():
                 self.status = self.LoanStatus.OVERDUE
             else:
                 self.status = self.LoanStatus.ACTIVE
-        self.full_clean()
+            self.full_clean()
         super().save(*args, **kwargs)
 
     def __str__(self) -> str:
@@ -196,7 +193,7 @@ class Loan(models.Model):
 
 
 class AuditLog(models.Model):
-    """Modelo de registro de auditoría para rastrear acciones del sistema."""
+    """Registro de auditoría para rastrear acciones del sistema."""
 
     user_actor = models.CharField(
         max_length=150,
@@ -206,11 +203,12 @@ class AuditLog(models.Model):
     action = models.CharField(
         max_length=255,
         verbose_name='Acción realizada',
-        help_text='Descripción de la acción ejecutada en el sistema.',
     )
     ip_address = models.GenericIPAddressField(
+        blank=True,   # Corregido: las acciones internas del sistema no tienen IP de usuario
+        null=True,
         verbose_name='Dirección IP',
-        help_text='Dirección IP desde la cual se realizó la acción.',
+        help_text='IP desde la cual se realizó la acción. Vacío para acciones automáticas del sistema.',
     )
     timestamp = models.DateTimeField(
         auto_now_add=True,
@@ -229,7 +227,7 @@ class AuditLog(models.Model):
 class Librarian(User):
     """
     Modelo Proxy para gestionar Bibliotecarios de forma independiente en el Admin.
-    No crea una tabla nueva, solo proporciona una interfaz diferente sobre el modelo User.
+    No crea una tabla nueva — solo proporciona una interfaz diferente sobre User.
     """
 
     class Meta:

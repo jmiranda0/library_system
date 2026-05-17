@@ -1,27 +1,27 @@
 """
-Vistas del sistema de gestión bibliotecaria.
+Vistas del portal de estudiantes.
 
 Módulos:
-  - CustomLoginView     → Login único con redirección por rol
-  - CatalogView         → Catálogo de libros con búsqueda (estudiantes)
-  - BookDetailView      → Detalle de un libro
-  - MyLoansView         → Panel de préstamos del estudiante autenticado
+  - CustomLoginView  → Login único con redirección por rol
+  - CatalogView      → Catálogo de libros con búsqueda
+  - BookDetailView   → Detalle de un libro
+  - MyLoansView      → Panel de préstamos del estudiante autenticado
 """
 from django.contrib.auth.decorators import login_required
 from django.contrib.auth.views import LoginView
-from django.db.models import Q
 from django.shortcuts import redirect
 from django.utils.decorators import method_decorator
-from django.views.generic import DetailView, ListView
+from django.core.paginator import Paginator
+from django.views.generic import DetailView, ListView, TemplateView
 
 from .models import Book, Loan
+from .services import search_books
 
 
 class CustomLoginView(LoginView):
     """Vista de login única para todos los roles del sistema."""
 
     template_name = 'login.html'
-    # Si el usuario ya está autenticado y regresa al login, lo redirigimos
     redirect_authenticated_user = True
 
     def get_success_url(self) -> str:
@@ -32,50 +32,28 @@ class CustomLoginView(LoginView):
 
 
 @method_decorator(login_required(login_url='/'), name='dispatch')
-class CatalogView(ListView):
-    """
-    Catálogo de libros disponible para todos los usuarios autenticados.
-
-    Soporta búsqueda por título o autor mediante el parámetro GET ?q=.
-    """
-
-    model = Book
+class CatalogView(TemplateView):
     template_name = 'catalog.html'
-    context_object_name = 'books'
-    paginate_by = 16
-
-    def get_queryset(self):
-        """
-        Filtra libros usando el motor de Búsqueda Semántica de IA si hay una consulta 'q'.
-        Si la IA falla, la función 'perform_semantic_search' usa su fallback léxico.
-        """
-        queryset = Book.objects.all()
-        query = self.request.GET.get('q', '').strip()
-        
-        if query:
-            # Importamos la función inteligente del agente
-            from apps.search.agent import perform_semantic_search
-            
-            # 1. Llamamos a la IA (que devolverá los IDs ordenados por relevancia o usará Fallback)
-            book_ids = perform_semantic_search(query)
-            
-            # 2. Si encontró algo, filtramos y ordenamos según lo decidió la IA
-            if book_ids:
-                from django.db.models import Case, When
-                preserved_order = Case(*[When(pk=pk, then=pos) for pos, pk in enumerate(book_ids)])
-                queryset = Book.objects.filter(id__in=book_ids).order_by(preserved_order)
-            else:
-                # Si la lista está vacía, no hubo coincidencias
-                queryset = Book.objects.none()
-                
-        return queryset
+    LIBROS_POR_PAGINA = 12
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['query'] = self.request.GET.get('q', '')
+        query = self.request.GET.get('q', '').strip()
+        page_number = self.request.GET.get('page', 1)
+
+        results = search_books(query)
+
+        paginator = Paginator(results, self.LIBROS_POR_PAGINA)
+        page_obj = paginator.get_page(page_number)
+
+        context['query'] = query
+        context['results'] = page_obj.object_list
+        context['page_obj'] = page_obj
+        context['paginator'] = paginator
+        context['is_paginated'] = paginator.num_pages > 1
+        context['total'] = len(results)
         return context
-
-
+    
 @method_decorator(login_required(login_url='/'), name='dispatch')
 class BookDetailView(DetailView):
     """Vista de detalle de un libro con información de disponibilidad."""
@@ -86,7 +64,6 @@ class BookDetailView(DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        # Verifica si este estudiante tiene el libro prestado actualmente
         if hasattr(self.request.user, 'student_profile'):
             context['prestamo_activo'] = Loan.objects.filter(
                 book=self.object,
@@ -101,7 +78,6 @@ class MyLoansView(ListView):
     """
     Panel personal de préstamos del estudiante autenticado.
 
-    Muestra los préstamos agrupados por estado: activos, vencidos y devueltos.
     Solo accesible para usuarios con perfil de estudiante.
     """
 
@@ -117,7 +93,6 @@ class MyLoansView(ListView):
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        """Retorna todos los préstamos del estudiante autenticado."""
         return (
             Loan.objects.filter(student=self.request.user.student_profile)
             .select_related('book')

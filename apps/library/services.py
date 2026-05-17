@@ -140,3 +140,34 @@ def return_loan(
     )
 
     return loan
+
+def search_books(query: str):
+    """
+    Ejecuta búsqueda y devuelve libros con su porcentaje de relevancia.
+
+    Returns:
+        Lista de tuplas (libro, porcentaje) ordenadas por relevancia.
+        Si la consulta está vacía, devuelve todos los libros sin porcentaje.
+    """
+    from apps.library.models import Book
+
+    if not query.strip():
+        return [(book, None) for book in Book.objects.all()]
+
+    from apps.search.agent import perform_search
+    matches = perform_search(query)
+
+    if not matches:
+        return []
+
+    # Construimos el resultado preservando orden y porcentaje
+    book_ids = [m.book_id for m in matches]
+    score_map = {m.book_id: m.score * 10 for m in matches}  # score 1-10 → 10%-100%
+
+    from django.db.models import Case, When
+    preserved_order = Case(
+        *[When(pk=pk, then=pos) for pos, pk in enumerate(book_ids)]
+    )
+    books = Book.objects.filter(id__in=book_ids).order_by(preserved_order)
+
+    return [(book, score_map[book.pk]) for book in books]

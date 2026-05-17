@@ -5,7 +5,8 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="description" content="{% block meta_description %}Sistema de Gestión Bibliotecaria — Biblioteca Universitaria{% endblock %}" />
+  <meta name="description"
+    content="{% block meta_description %}Sistema de Gestión Bibliotecaria — Biblioteca Universitaria{% endblock %}" />
   <title>{% block title %}Biblioteca Universitaria{% endblock %}</title>
   <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -15,16 +16,19 @@
 </head>
 
 <body class="{% block body_class %}bg-[#0f172a] text-slate-100 min-h-screen flex flex-col antialiased{% endblock %}"
-      style="font-family: 'Inter', system-ui, sans-serif;">
+  style="font-family: 'Inter', system-ui, sans-serif;">
 
   {# ─── Alerta de Lista Negra ─── #}
-  {% if user.is_authenticated and user.student_profile and user.student_profile.is_blacklisted %}
+  {% if user.is_authenticated and user.student_profile.is_blacklisted %}
   <div class="bg-red-600 text-white text-center py-2 px-4 text-sm font-semibold shadow-lg relative z-50">
     <div class="max-w-7xl mx-auto flex items-center justify-center gap-2">
-      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
-        <path stroke-linecap="round" stroke-linejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+      <svg xmlns="http://www.w3.org/2000/svg" class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke-width="2"
+        stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round"
+          d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
       </svg>
-      Aviso: Tu cuenta se encuentra en la Lista Negra. No podrás solicitar nuevos préstamos. Acércate a la biblioteca para más información.
+      Aviso: Tu cuenta se encuentra en la Lista Negra. No podrás solicitar nuevos préstamos. Acércate a la biblioteca
+      para más información.
     </div>
   </div>
   {% endif %}
@@ -37,9 +41,10 @@
 
         {# ── Logo ── #}
         <a href="/" id="nav-logo" class="flex items-center gap-2.5 group shrink-0">
-          <div class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md transition group-hover:shadow-indigo-500/40 group-hover:scale-105">
-            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none"
-              viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <div
+            class="w-8 h-8 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded-lg flex items-center justify-center shadow-md transition group-hover:shadow-indigo-500/40 group-hover:scale-105">
+            <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24"
+              stroke-width="2" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round"
                 d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
             </svg>
@@ -56,8 +61,8 @@
                    {% block nav_catalogo_class %}text-slate-400 hover:text-slate-100 hover:bg-slate-700/60{% endblock %}">
             <span class="flex items-center gap-1.5">
               {# Ícono estantes #}
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
-                viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
+                stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round"
                   d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
               </svg>
@@ -71,8 +76,8 @@
                    {% block nav_prestamos_class %}text-slate-400 hover:text-slate-100 hover:bg-slate-700/60{% endblock %}">
             <span class="flex items-center gap-1.5">
               {# Ícono marcador #}
-              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none"
-                viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
+                stroke="currentColor">
                 <path stroke-linecap="round" stroke-linejoin="round"
                   d="M17.593 3.322c1.1.128 1.907 1.077 1.907 2.185V21L12 17.25 4.5 21V5.507c0-1.108.806-2.057 1.907-2.185a48.507 48.507 0 0 1 11.186 0Z" />
               </svg>
@@ -85,40 +90,48 @@
         {# ── Sección de usuario (derecha) ── #}
         <div class="flex items-center gap-2 shrink-0">
           {% if user.is_authenticated %}
-            {# Avatar + nombre #}
-            <div class="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
-              <div class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
-                {{ user.username|slice:":1" }}
-              </div>
-              <span class="text-sm text-slate-300 font-medium max-w-[120px] truncate">
-                {{ user.get_full_name|default:user.username }}
-              </span>
+          {# Avatar + nombre #}
+          <div
+            class="hidden sm:flex items-center gap-2.5 px-3 py-1.5 rounded-lg bg-slate-800/60 border border-slate-700/60">
+            <div
+              class="w-7 h-7 rounded-full bg-gradient-to-br from-indigo-500 to-indigo-700 flex items-center justify-center text-xs font-bold text-white uppercase shrink-0">
+              {{ user.username|slice:":1" }}
             </div>
-            {# Controles de usuario #}
-            <div class="flex items-center gap-1.5">
-              <a href="{% url 'cambiar-password' %}"
-                class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-400 transition px-2.5 py-1.5 rounded-lg hover:bg-indigo-950/40 border border-transparent hover:border-indigo-900/50" title="Cambiar Contraseña">
-                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                  <path stroke-linecap="round" stroke-linejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
-                </svg>
-                <span class="hidden sm:block">Contraseña</span>
-              </a>
-              <form method="post" action="/logout/">
-                {% csrf_token %}
-                <button id="btn-cerrar-sesion" type="submit"
-                  class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-red-400 transition px-2.5 py-1.5 rounded-lg hover:bg-red-950/40 border border-transparent hover:border-red-900/50" title="Cerrar sesión">
-                  <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
-                  </svg>
-                  <span class="hidden sm:block">Salir</span>
-                </button>
-              </form>
-            </div>
-          {% else %}
-            <a id="btn-iniciar-sesion" href="/"
-              class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition px-3 py-1.5 rounded-lg hover:bg-indigo-950/40 border border-transparent hover:border-indigo-800/60">
-              Iniciar sesión
+            <span class="text-sm text-slate-300 font-medium max-w-[120px] truncate">
+              {{ user.get_full_name|default:user.username }}
+            </span>
+          </div>
+          {# Controles de usuario #}
+          <div class="flex items-center gap-1.5">
+            <a href="{% url 'cambiar-password' %}"
+              class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-indigo-400 transition px-2.5 py-1.5 rounded-lg hover:bg-indigo-950/40 border border-transparent hover:border-indigo-900/50"
+              title="Cambiar Contraseña">
+              <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke-width="1.8"
+                stroke="currentColor">
+                <path stroke-linecap="round" stroke-linejoin="round"
+                  d="M16.5 10.5V6.75a4.5 4.5 0 1 0-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 0 0 2.25-2.25v-6.75a2.25 2.25 0 0 0-2.25-2.25H6.75a2.25 2.25 0 0 0-2.25 2.25v6.75a2.25 2.25 0 0 0 2.25 2.25Z" />
+              </svg>
+              <span class="hidden sm:block">Contraseña</span>
             </a>
+            <form method="post" action="/logout/">
+              {% csrf_token %}
+              <button id="btn-cerrar-sesion" type="submit"
+                class="flex items-center gap-1.5 text-sm text-slate-500 hover:text-red-400 transition px-2.5 py-1.5 rounded-lg hover:bg-red-950/40 border border-transparent hover:border-red-900/50"
+                title="Cerrar sesión">
+                <svg xmlns="http://www.w3.org/2000/svg" class="w-4 h-4" fill="none" viewBox="0 0 24 24"
+                  stroke-width="1.8" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round"
+                    d="M8.25 9V5.25A2.25 2.25 0 0 1 10.5 3h6a2.25 2.25 0 0 1 2.25 2.25v13.5A2.25 2.25 0 0 1 16.5 21h-6a2.25 2.25 0 0 1-2.25-2.25V15M12 9l3 3m0 0-3 3m3-3H2.25" />
+                </svg>
+                <span class="hidden sm:block">Salir</span>
+              </button>
+            </form>
+          </div>
+          {% else %}
+          <a id="btn-iniciar-sesion" href="/"
+            class="inline-flex items-center gap-1.5 text-sm font-medium text-indigo-400 hover:text-indigo-300 transition px-3 py-1.5 rounded-lg hover:bg-indigo-950/40 border border-transparent hover:border-indigo-800/60">
+            Iniciar sesión
+          </a>
           {% endif %}
         </div>
 
@@ -153,8 +166,8 @@
     <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col sm:flex-row items-center justify-between gap-2">
       <div class="flex items-center gap-2">
         <div class="w-5 h-5 bg-gradient-to-br from-indigo-500 to-indigo-600 rounded flex items-center justify-center">
-          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-white" fill="none"
-            viewBox="0 0 24 24" stroke-width="2" stroke="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="w-3 h-3 text-white" fill="none" viewBox="0 0 24 24"
+            stroke-width="2" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round"
               d="M12 6.042A8.967 8.967 0 0 0 6 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 0 1 6 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 0 1 6-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0 0 18 18a8.967 8.967 0 0 0-6 2.292m0-14.25v14.25" />
           </svg>
@@ -169,4 +182,5 @@
   {% block extra_js %}{% endblock %}
 
 </body>
+
 </html>
