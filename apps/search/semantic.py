@@ -71,14 +71,14 @@ class SemanticSearchStrategy(SearchStrategy):
         catalog = self._build_catalog()
         prompt = f"CONSULTA DEL USUARIO: {query}\n\n{catalog}"
 
-        print("=" * 60)
-        print(f"PROMPT ENVIADO A LA IA:\n{prompt}")
-        print("=" * 60)
+        #print("=" * 60)
+        #print(f"PROMPT ENVIADO A LA IA:\n{prompt}")
+        #print("=" * 60)
 
         result = self._agent.run_sync(prompt)
 
-        print(f"RESPUESTA DE LA IA: {result.output.matches}")
-        print("=" * 60)
+        #print(f"RESPUESTA DE LA IA: {result.output.matches}")
+        #print("=" * 60)
 
         return [
             BookMatch(book_id=m.book_id, score=m.score)

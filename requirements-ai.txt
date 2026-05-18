@@ -1,0 +1,11 @@
+# Proveedor de IA — instalar según disponibilidad
+# Descomenta el que vayas a usar y configura la key en .env
+
+# Google Gemini (requiere VPN en Cuba):
+google-genai==2.2.0
+
+# Groq (gratuito, requiere Starlink en Cuba):
+# groq==1.2.0
+
+# DeepSeek (requiere saldo):
+# openai==2.36.0

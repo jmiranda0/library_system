@@ -19,18 +19,18 @@ def perform_search(query: str) -> List[BookMatch]:
     """
     ai_model = getattr(settings, 'SEARCH_AI_MODEL', None)
 
-    print(f"DEBUG — SEARCH_AI_MODEL: '{ai_model}'")
-    print(f"DEBUG — Query: '{query}'")
+    #print(f"DEBUG — SEARCH_AI_MODEL: '{ai_model}'")
+    #print(f"DEBUG — Query: '{query}'")
 
     if ai_model:
         try:
             semantic = SemanticSearchStrategy(model=ai_model)
             return semantic.search(query)
         except Exception as exc:
-            print(f"DEBUG — Excepción IA: {exc}")
+            #print(f"DEBUG — Excepción IA: {exc}")
             _log_ai_failure(query=query, error=exc)
 
-    print("DEBUG — Usando fallback léxico")
+    #print("DEBUG — Usando fallback léxico")
     return _lexical.search(query)
 
 
