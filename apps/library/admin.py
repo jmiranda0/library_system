@@ -2,7 +2,7 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import User, Group
 from unfold.admin import ModelAdmin
-from .models import AuditLog, Book, Loan, Student, Librarian
+from .models import AuditLog, Book, Loan, Student, Librarian, Administrator
 from .forms import StudentAdminForm, LibrarianAdminForm
 from .services import _write_audit_log, create_loan, return_loan
 
@@ -263,6 +263,48 @@ class LibrarianAdmin(AuditMixin, ModelAdmin):
 
     @admin.display(description='Nombre completo')
     def get_full_name_display(self, obj: Librarian) -> str:
+        return obj.get_full_name()
+
+
+@admin.register(Administrator)
+class AdministratorAdmin(AuditMixin, ModelAdmin):
+    """
+    Panel exclusivo para Administradores.
+    Gestiona usuarios con rol de Administrador del sistema.
+    """
+    form = LibrarianAdminForm
+    list_display = ('username', 'get_full_name_display', 'email', 'is_active')
+    search_fields = ('username', 'first_name', 'last_name', 'email')
+    list_filter = ('is_active',)
+
+    fieldsets = (
+        ('Información Personal', {
+            'fields': ('first_name', 'last_name', 'email')
+        }),
+        ('Datos de Autenticación', {
+            'fields': ('username', 'password'),
+            'description': 'Si se dejan en blanco, el sistema los generará automáticamente.'
+        }),
+        ('Estado de la Cuenta', {
+            'fields': ('is_active',)
+        }),
+    )
+
+    def get_queryset(self, request):
+        """Muestra solo usuarios del grupo Administradores."""
+        qs = super().get_queryset(request)
+        return qs.filter(groups__name='Administradores')
+
+    def save_model(self, request, obj, form, change):
+        """Asegura que el Administrador tenga is_staff=True y pertenezca a su grupo."""
+        obj.is_staff = True
+        super().save_model(request, obj, form, change)
+        from django.contrib.auth.models import Group
+        grupo, _ = Group.objects.get_or_create(name='Administradores')
+        obj.groups.add(grupo)
+
+    @admin.display(description='Nombre completo')
+    def get_full_name_display(self, obj):
         return obj.get_full_name()
 
 

@@ -200,15 +200,27 @@ UNFOLD = {
                 "title": "Administración del Sistema",
                 "items": [
                     {
-                        "title": "Usuarios",
-                        "icon": "manage_accounts",
-                        "link": reverse_lazy("admin:auth_user_changelist"),
+                        "title": "Administradores",
+                        "icon": "admin_panel_settings",
+                        "link": reverse_lazy("admin:library_administrator_changelist"),
                         "permission": lambda request: request.user.is_superuser,
                     },
                     {
                         "title": "Bibliotecarios",
                         "icon": "badge",
                         "link": reverse_lazy("admin:library_librarian_changelist"),
+                        "permission": lambda request: request.user.is_superuser or request.user.groups.filter(name='Administradores').exists(),
+                    },
+                    {
+                        "title": "Estudiantes",
+                        "icon": "person",
+                        "link": reverse_lazy("admin:library_student_changelist"),
+                        "permission": lambda request: request.user.is_superuser or request.user.groups.filter(name='Administradores').exists(),
+                    },
+                    {
+                        "title": "Usuarios",
+                        "icon": "manage_accounts",
+                        "link": reverse_lazy("admin:auth_user_changelist"),
                         "permission": lambda request: request.user.is_superuser,
                     },
                     {

@@ -234,3 +234,14 @@ class Librarian(User):
         proxy = True
         verbose_name = 'Bibliotecario'
         verbose_name_plural = 'Bibliotecarios'
+
+
+class Administrator(User):
+    """
+    Modelo Proxy para gestionar Administradores de forma independiente en el Admin.
+    No crea una tabla nueva — solo proporciona una interfaz diferente sobre User.
+    """
+    class Meta:
+        proxy = True
+        verbose_name = 'Administrador'
+        verbose_name_plural = 'Administradores'
