@@ -5,11 +5,13 @@ GROUPS_PERMISSIONS = {
     'Bibliotecarios': {
         'book':     ['view', 'add', 'change', 'delete'],
         'student':  ['view', 'change'],  # no add ni delete
+        'teacher':  ['view', 'change'],
         'loan':     ['view', 'add', 'change'],
         'auditlog': ['view'],
     },
-    'Administradores': {
+    'Supervisores': {
         'student':   ['view', 'add', 'change', 'delete'],
+        'teacher':   ['view', 'add', 'change', 'delete'],
         'librarian': ['view', 'add', 'change', 'delete'],
         'book':      ['view'],  # solo lectura
         'loan':      ['view'],  # solo lectura
@@ -19,6 +21,10 @@ GROUPS_PERMISSIONS = {
         'book': ['view'],
         'loan': ['view'],
     },
+    'Profesores': {
+        'book': ['view'],
+        'loan': ['view'],
+},
 }
 
 

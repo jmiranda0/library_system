@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from unfold.widgets import UnfoldAdminTextInputWidget, UnfoldAdminPasswordWidget, UnfoldAdminEmailInputWidget
-from .models import Librarian, Student
+from .models import Librarian, Student, Teacher
 
 
 class StudentAdminForm(forms.ModelForm):
@@ -48,7 +48,7 @@ class StudentAdminForm(forms.ModelForm):
     class Meta:
         model = Student
         # NO incluimos 'user' porque lo manejamos nosotros por detrás
-        fields = ['personal_id', 'career', 'academic_year', 'is_blacklisted']
+        fields = ['personal_id', 'academic_year', 'is_blacklisted']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -144,85 +144,222 @@ class StudentAdminForm(forms.ModelForm):
 
 class LibrarianAdminForm(forms.ModelForm):
     """
-    Formulario personalizado para la creación y edición de Bibliotecarios.
-    Asigna is_staff=True y el grupo 'Bibliotecarios' automáticamente de forma transparente.
+    Formulario para Bibliotecarios y Supervisores.
+    Genera username, email y contraseña automáticamente si se dejan en blanco.
+    Al editar, los datos de autenticación son solo lectura.
     """
     username = forms.CharField(
-        max_length=150, 
-        label='Nombre de Usuario', 
+        max_length=150,
+        label='Nombre de Usuario',
         required=False,
         widget=UnfoldAdminTextInputWidget,
         help_text='Se generará automáticamente (ej. marta.rodriguez) si se deja en blanco.'
+    )
+    first_name = forms.CharField(
+        max_length=150,
+        label='Nombre',
+        required=True,
+        widget=UnfoldAdminTextInputWidget
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        label='Apellidos',
+        required=True,
+        widget=UnfoldAdminTextInputWidget
     )
     password = forms.CharField(
         widget=UnfoldAdminPasswordWidget,
         required=False,
         label='Contraseña',
-        help_text='Para nuevos bibliotecarios, la contraseña por defecto será "biblioteca123" si se deja en blanco.'
+        help_text='La contraseña por defecto será "biblioteca123" si se deja en blanco.'
     )
 
     class Meta:
         model = Librarian
-        fields = ['username', 'first_name', 'last_name', 'email', 'is_active']
-        widgets = {
-            'first_name': UnfoldAdminTextInputWidget,
-            'last_name': UnfoldAdminTextInputWidget,
-            'email': UnfoldAdminEmailInputWidget,
-        }
+        fields = ['is_active']
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # No obligamos a la contraseña para permitir la automática
+        if self.instance and self.instance.pk:
+            self.fields['username'].initial = self.instance.username
+            self.fields['first_name'].initial = self.instance.first_name
+            self.fields['last_name'].initial = self.instance.last_name
+            # Al editar, username no se puede cambiar
+            self.fields['username'].widget.attrs['readonly'] = True
+            self.fields['username'].help_text = 'El nombre de usuario no puede modificarse.'
+            # Ocultar contraseña al editar
+            self.fields['password'].widget = forms.HiddenInput()
+            self.fields['password'].required = False
 
     def clean(self):
         cleaned_data = super().clean()
         username = cleaned_data.get('username')
         first_name = cleaned_data.get('first_name')
         last_name = cleaned_data.get('last_name')
-        
-        # Generar username automáticamente si está en blanco
+
         if not username and first_name and last_name:
             import unicodedata
             def clean_text(text):
-                text = ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn')
+                text = ''.join(
+                    c for c in unicodedata.normalize('NFD', text)
+                    if unicodedata.category(c) != 'Mn'
+                )
                 return text.lower().split()[0]
-                
+
             base_username = f"{clean_text(first_name)}.{clean_text(last_name)}"
             final_username = base_username
             counter = 1
             query = User.objects.all()
             if self.instance and self.instance.pk:
                 query = query.exclude(pk=self.instance.pk)
-                
+
             while query.filter(username=final_username).exists():
                 final_username = f"{base_username}{counter}"
                 counter += 1
             cleaned_data['username'] = final_username
-            
-        # Correo por defecto
+
+        # Generar email institucional si se dejó en blanco
         if not cleaned_data.get('email') and cleaned_data.get('username'):
-            cleaned_data['email'] = f"{cleaned_data['username']}@biblioteca.edu"
-            
+            cleaned_data['email'] = f"{cleaned_data['username']}@biblioteca.cujae.edu.cu"
+
         return cleaned_data
 
     @transaction.atomic
     def save(self, commit=True):
         user = super().save(commit=False)
+        username = self.cleaned_data.get('username')
+        first_name = self.cleaned_data.get('first_name')
+        last_name = self.cleaned_data.get('last_name')
         password = self.cleaned_data.get('password')
-        
-        # Si es un bibliotecario nuevo
+
+        user.username = username
+        user.first_name = first_name
+        user.last_name = last_name
+
         if not user.pk:
+            # Solo al crear: asignar email y contraseña
+            user.email = f"{username}@biblioteca.cujae.edu.cu"
             user.is_staff = True
             if not password:
                 password = "biblioteca123"
             user.set_password(password)
-        elif password:
-            user.set_password(password)
-            
+
         if commit:
             user.save()
-            # Asignar grupo automáticamente
             grupo, _ = Group.objects.get_or_create(name='Bibliotecarios')
             user.groups.add(grupo)
             self.save_m2m()
         return user
+    
+
+class TeacherAdminForm(forms.ModelForm):
+    """
+    Formulario para la creación y edición de Profesores.
+    Mismo comportamiento que StudentAdminForm pero sin carrera ni año académico.
+    """
+    username = forms.CharField(
+        max_length=150,
+        label='Nombre de Usuario',
+        required=False,
+        widget=UnfoldAdminTextInputWidget,
+        help_text='Se generará automáticamente si se deja en blanco.'
+    )
+    first_name = forms.CharField(
+        max_length=150,
+        label='Nombre',
+        required=True,
+        widget=UnfoldAdminTextInputWidget
+    )
+    last_name = forms.CharField(
+        max_length=150,
+        label='Apellidos',
+        required=True,
+        widget=UnfoldAdminTextInputWidget
+    )
+    password = forms.CharField(
+        widget=UnfoldAdminPasswordWidget,
+        required=False,
+        label='Contraseña',
+        help_text='Se asignará el Carné de Identidad como contraseña si se deja en blanco.'
+    )
+
+    class Meta:
+        model = Teacher
+        fields = ['personal_id', 'department', 'is_blacklisted']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['username'].initial = self.instance.user.username
+            self.fields['first_name'].initial = self.instance.user.first_name
+            self.fields['last_name'].initial = self.instance.user.last_name
+            self.fields['password'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        username = cleaned_data.get('username')
+        first_name = cleaned_data.get('first_name')
+        last_name = cleaned_data.get('last_name')
+
+        if not username and first_name and last_name:
+            import unicodedata
+            def clean_text(text):
+                text = ''.join(
+                    c for c in unicodedata.normalize('NFD', text)
+                    if unicodedata.category(c) != 'Mn'
+                )
+                return text.lower().split()[0]
+
+            base_username = f"{clean_text(first_name)}.{clean_text(last_name)}"
+            final_username = base_username
+            counter = 1
+            query = User.objects.all()
+            if self.instance and self.instance.pk:
+                query = query.exclude(pk=self.instance.user.pk)
+
+            while query.filter(username=final_username).exists():
+                final_username = f"{base_username}{counter}"
+                counter += 1
+            cleaned_data['username'] = final_username
+
+        if not cleaned_data.get('email') and cleaned_data.get('username'):
+            cleaned_data['email'] = f"{cleaned_data['username']}@biblioteca.edu"
+
+        return cleaned_data
+
+    @transaction.atomic
+    def save(self, commit=True):
+        teacher = super().save(commit=False)
+        username = self.cleaned_data.get('username')
+        first_name = self.cleaned_data.get('first_name')
+        last_name = self.cleaned_data.get('last_name')
+        email = self.cleaned_data.get('email', '')
+        password = self.cleaned_data.get('password')
+
+        if not teacher.pk:
+            user = User(
+                username=username,
+                first_name=first_name,
+                last_name=last_name,
+                email=email
+            )
+            if not password:
+                password = self.cleaned_data.get('personal_id')
+            user.set_password(password)
+            user.save()
+            grupo, _ = Group.objects.get_or_create(name='Profesores')
+            user.groups.add(grupo)
+            teacher.user = user
+        else:
+            user = teacher.user
+            user.username = username
+            user.first_name = first_name
+            user.last_name = last_name
+            if password:
+                user.set_password(password)
+            user.save()
+
+        if commit:
+            teacher.save()
+            self.save_m2m()
+        return teacher

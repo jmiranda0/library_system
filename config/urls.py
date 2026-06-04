@@ -4,7 +4,7 @@ Configuración de URLs del proyecto.
 Rutas disponibles:
   /                → Login único (redirige según rol)
   /logout/         → Cierre de sesión
-  /panel/          → Panel de administración (Bibliotecarios y Administradores)
+  /panel/          → Panel de administración (Bibliotecarios y Supervisores)
   /catalogo/       → Catálogo de libros (Estudiantes autenticados)
   /catalogo/<pk>/  → Detalle de un libro
   /mis-prestamos/  → Panel de préstamos del estudiante

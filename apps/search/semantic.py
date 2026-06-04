@@ -80,6 +80,18 @@ class SemanticSearchStrategy(SearchStrategy):
         #print(f"RESPUESTA DE LA IA: {result.output.matches}")
         #print("=" * 60)
 
+        # --- NUEVO: SUMAR +1 A LAS RECOMENDACIONES ---
+        # Extraemos los IDs que la IA acaba de recomendar
+        book_ids = [m.book_id for m in result.output.matches]
+        if book_ids:
+            from django.db.models import F
+            from apps.library.models import Book
+            
+            # Usamos 'F' para que la base de datos sume 1 de forma atómica y súper rápida
+            Book.objects.filter(id__in=book_ids).update(
+                ai_recommendations_count=F('ai_recommendations_count') + 1
+            )
+
         return [
             BookMatch(book_id=m.book_id, score=m.score)
             for m in result.output.matches

@@ -2,8 +2,8 @@ from django.contrib import admin
 from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as BaseGroupAdmin
 from django.contrib.auth.models import User, Group
 from unfold.admin import ModelAdmin
-from .models import AuditLog, Book, Loan, Student, Librarian, Administrator
-from .forms import StudentAdminForm, LibrarianAdminForm
+from .models import AuditLog, Book, Loan, Student, Librarian, Administrator, Teacher
+from .forms import StudentAdminForm, LibrarianAdminForm, TeacherAdminForm
 from .services import _write_audit_log, create_loan, return_loan
 
 
@@ -12,7 +12,9 @@ from django.contrib.auth.models import User
 from django.db.models.functions import TruncMonth
 from django.db.models import Count
 import json
-
+from datetime import date, timedelta
+from unfold.widgets import UnfoldAdminTextInputWidget 
+from django.db.models import Sum
 # Unregister default admin to replace with Unfold
 admin.site.unregister(User)
 admin.site.unregister(Group)
@@ -76,7 +78,7 @@ class BookAdmin(AuditMixin, ModelAdmin):
     search_fields = ('title', 'author')
     list_filter = ('author',)
 
-    @admin.display(description='Stock disponible')
+    @admin.display(description='Cantidad disponible')
     def available_stock(self, obj: Book) -> int:
         """Muestra el stock disponible como columna de solo lectura."""
         return obj.available_stock
@@ -89,26 +91,24 @@ class StudentAdmin(AuditMixin, ModelAdmin):
     form = StudentAdminForm
     list_display = ('get_full_name', 'personal_id', 'career', 'academic_year', 'is_blacklisted')
     search_fields = ('user__first_name', 'user__last_name', 'personal_id', 'user__username')
-    list_filter = ('career', 'academic_year', 'is_blacklisted')
+    list_filter = ('academic_year', 'is_blacklisted')
 
     def get_fieldsets(self, request, obj=None):
         if not obj:
-            # Creando: ocultar Datos de Autenticación, se generarán solos
             return (
                 ('Información Personal', {
                     'fields': ('first_name', 'last_name', 'personal_id')
                 }),
                 ('Información Académica', {
-                    'fields': ('career', 'academic_year') # is_blacklisted no al crear
+                    'fields': ('academic_year',)
                 }),
             )
-        # Editando: mostrar datos autogenerados
         return (
             ('Información Personal', {
                 'fields': ('first_name', 'last_name', 'personal_id')
             }),
             ('Información Académica', {
-                'fields': ('career', 'academic_year', 'is_blacklisted')
+                'fields': ('academic_year', 'is_blacklisted')
             }),
             ('Credenciales de Acceso (Autogeneradas)', {
                 'fields': ('username_display', 'email_display', 'default_password_info'),
@@ -142,10 +142,27 @@ class StudentAdmin(AuditMixin, ModelAdmin):
 class LoanAdmin(AuditMixin, ModelAdmin):
     """Configuración del panel de administración para el modelo Loan."""
 
-    list_display = ('book', 'student', 'loan_date', 'expected_return_date', 'status')
-    search_fields = ('book__title', 'student__user__last_name', 'student__personal_id')
+    # 1. ACTUALIZADO: Cambiamos 'student' por nuestro método dinámico 'get_borrower'
+    list_display = ('book', 'get_borrower', 'loan_date', 'expected_return_date', 'status')
+    
+    # 2. ACTUALIZADO: Agregamos búsqueda por datos del profesor
+    search_fields = (
+        'book__title', 
+        'student__user__last_name', 'student__personal_id',
+        'teacher__user__last_name', 'teacher__personal_id'
+    )
+    
     list_filter = ('status', 'loan_date')
     date_hierarchy = 'loan_date'
+
+    # MÉTODO NUEVO: Para que la tabla se vea limpia y te diga quién se llevó el libro
+    @admin.display(description='Prestatario (Quién lo tiene)')
+    def get_borrower(self, obj):
+        if obj.student:
+            return f"🎓 Estudiante: {obj.student.user.get_full_name()}"
+        elif obj.teacher:
+            return f"👨‍🏫 Profesor: {obj.teacher.user.get_full_name()}"
+        return "Desconocido"
 
     def get_readonly_fields(self, request, obj=None):
         if not obj:
@@ -156,15 +173,31 @@ class LoanAdmin(AuditMixin, ModelAdmin):
 
     def get_fields(self, request, obj=None):
         if not obj:
-            # Campos visibles al crear: ocultamos fecha_real_devolucion
-            return ('book', 'student', 'get_loan_date_display', 'expected_return_date', 'status')
-        # Al editar: todo es visible
-        return ('book', 'student', 'loan_date', 'expected_return_date', 'actual_return_date', 'status')
+            # 3. ACTUALIZADO: Agregamos 'teacher' al crear
+            return ('book', 'student', 'teacher', 'get_loan_date_display', 'expected_return_date', 'status')
+        # 4. ACTUALIZADO: Agregamos 'teacher' al editar
+        return ('book', 'student', 'teacher', 'loan_date', 'expected_return_date', 'actual_return_date', 'status')
 
     @admin.display(description='Fecha de préstamo')
     def get_loan_date_display(self, obj):
         from datetime import date
         return obj.loan_date if obj and obj.loan_date else date.today()
+
+    def get_form(self, request, obj=None, **kwargs):
+        form = super().get_form(request, obj, **kwargs)
+        
+        if 'expected_return_date' in form.base_fields:
+            # Calculamos "Mañana"
+            tomorrow = date.today() + timedelta(days=1)
+            
+            form.base_fields['expected_return_date'].widget = UnfoldAdminTextInputWidget(
+                attrs={
+                    'type': 'date',
+                    'min': tomorrow.strftime('%Y-%m-%d'),
+                    'class': 'w-full'
+                }
+            )
+        return form
 
     def save_model(self, request, obj, form, change):
         """
@@ -175,16 +208,10 @@ class LoanAdmin(AuditMixin, ModelAdmin):
         from django.core.exceptions import ValidationError
         
         try:
-            # Al guardar, el modelo ejecutará su nueva lógica de estado automática
             super().save_model(request, obj, form, change)
         except ValidationError as e:
-            # Si hay error, lo mostramos y evitamos que Django diga "Éxito"
             msg = e.message if hasattr(e, 'message') else str(e)
             messages.error(request, f"Error de Regla de Negocio: {msg}")
-            # Al no re-lanzar la excepción aquí, Django mostrará el mensaje verde.
-            # Para evitar el mensaje verde, lanzamos una excepción que el Admin entienda
-            # pero que no rompa la página de edición.
-            # En Django Admin, esto se suele manejar en el Form, pero aquí lo haremos así:
             raise ValidationError(e)
         except Exception as e:
             messages.error(request, f"Error inesperado: {str(e)}")
@@ -206,7 +233,7 @@ class AuditLogAdmin(ModelAdmin):
         Los superusuarios (Admin) mantienen acceso total.
         """
         qs = super().get_queryset(request)
-        if request.user.is_superuser:
+        if request.user.is_superuser or request.user.groups.filter(name='Supervisores').exists():
             return qs
         # El bibliotecario solo ve lo que él mismo registró
         return qs.filter(user_actor=request.user.username)
@@ -226,35 +253,47 @@ class AuditLogAdmin(ModelAdmin):
 
 @admin.register(Librarian)
 class LibrarianAdmin(AuditMixin, ModelAdmin):
-    """
-    Configuración del panel de administración exclusivo para Bibliotecarios.
-    Usa un modelo Proxy para separarlos visualmente de los usuarios normales.
-    """
     form = LibrarianAdminForm
     list_display = ('username', 'get_full_name_display', 'email', 'is_active')
     search_fields = ('username', 'first_name', 'last_name', 'email')
     list_filter = ('is_active',)
 
-    fieldsets = (
-        ('Información Personal', {
-            'fields': ('first_name', 'last_name', 'email')
-        }),
-        ('Datos de Autenticación', {
-            'fields': ('username', 'password'),
-            'description': 'Si se dejan en blanco, el sistema los generará automáticamente.'
-        }),
-        ('Estado de la Cuenta', {
-            'fields': ('is_active',)
-        }),
-    )
+    def get_fieldsets(self, request, obj=None):
+        if not obj:
+            return (
+                ('Información Personal', {
+                    'fields': ('first_name', 'last_name')
+                }),
+                ('Datos de Autenticación', {
+                    'fields': ('username', 'password'),
+                    'description': 'Si se dejan en blanco, el sistema los generará automáticamente.'
+                }),
+                ('Estado de la Cuenta', {
+                    'fields': ('is_active',)
+                }),
+            )
+        return (
+            ('Información Personal', {
+                'fields': ('first_name', 'last_name')
+            }),
+            ('Credenciales de Acceso (Solo lectura)', {
+                'fields': ('username_display', 'email_display', 'default_password_info'),
+            }),
+            ('Estado de la Cuenta', {
+                'fields': ('is_active',)
+            }),
+        )
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return ('username_display', 'email_display', 'default_password_info')
+        return ()
 
     def get_queryset(self, request):
-        """Filtra para mostrar únicamente a los usuarios que pertenecen al grupo 'Bibliotecarios'."""
         qs = super().get_queryset(request)
         return qs.filter(groups__name='Bibliotecarios')
 
     def save_model(self, request, obj, form, change):
-        """Asegura que el Bibliotecario tenga is_staff=True y pertenezca a su grupo."""
         obj.is_staff = True
         super().save_model(request, obj, form, change)
         from django.contrib.auth.models import Group
@@ -265,47 +304,135 @@ class LibrarianAdmin(AuditMixin, ModelAdmin):
     def get_full_name_display(self, obj: Librarian) -> str:
         return obj.get_full_name()
 
+    @admin.display(description='Usuario')
+    def username_display(self, obj):
+        return obj.username
+
+    @admin.display(description='Correo')
+    def email_display(self, obj):
+        return obj.email
+
+    @admin.display(description='Contraseña Inicial')
+    def default_password_info(self, obj):
+        return 'biblioteca123 (el bibliotecario puede cambiarla desde su perfil)'
+
 
 @admin.register(Administrator)
 class AdministratorAdmin(AuditMixin, ModelAdmin):
-    """
-    Panel exclusivo para Administradores.
-    Gestiona usuarios con rol de Administrador del sistema.
-    """
     form = LibrarianAdminForm
     list_display = ('username', 'get_full_name_display', 'email', 'is_active')
     search_fields = ('username', 'first_name', 'last_name', 'email')
     list_filter = ('is_active',)
 
-    fieldsets = (
-        ('Información Personal', {
-            'fields': ('first_name', 'last_name', 'email')
-        }),
-        ('Datos de Autenticación', {
-            'fields': ('username', 'password'),
-            'description': 'Si se dejan en blanco, el sistema los generará automáticamente.'
-        }),
-        ('Estado de la Cuenta', {
-            'fields': ('is_active',)
-        }),
-    )
+    def get_fieldsets(self, request, obj=None):
+        if not obj:
+            return (
+                ('Información Personal', {
+                    'fields': ('first_name', 'last_name')
+                }),
+                ('Datos de Autenticación', {
+                    'fields': ('username', 'password'),
+                    'description': 'Si se dejan en blanco, el sistema los generará automáticamente.'
+                }),
+                ('Estado de la Cuenta', {
+                    'fields': ('is_active',)
+                }),
+            )
+        return (
+            ('Información Personal', {
+                'fields': ('first_name', 'last_name')
+            }),
+            ('Credenciales de Acceso (Solo lectura)', {
+                'fields': ('username_display', 'email_display', 'default_password_info'),
+            }),
+            ('Estado de la Cuenta', {
+                'fields': ('is_active',)
+            }),
+        )
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return ('username_display', 'email_display', 'default_password_info')
+        return ()
 
     def get_queryset(self, request):
-        """Muestra solo usuarios del grupo Administradores."""
         qs = super().get_queryset(request)
-        return qs.filter(groups__name='Administradores')
+        return qs.filter(groups__name='Supervisores')
 
     def save_model(self, request, obj, form, change):
-        """Asegura que el Administrador tenga is_staff=True y pertenezca a su grupo."""
         obj.is_staff = True
         super().save_model(request, obj, form, change)
         from django.contrib.auth.models import Group
-        grupo, _ = Group.objects.get_or_create(name='Administradores')
+        grupo, _ = Group.objects.get_or_create(name='Supervisores')
         obj.groups.add(grupo)
 
     @admin.display(description='Nombre completo')
     def get_full_name_display(self, obj):
         return obj.get_full_name()
+
+    @admin.display(description='Usuario')
+    def username_display(self, obj):
+        return obj.username
+
+    @admin.display(description='Correo')
+    def email_display(self, obj):
+        return obj.email
+
+    @admin.display(description='Contraseña Inicial')
+    def default_password_info(self, obj):
+        return 'biblioteca123 (el supervisor puede cambiarla desde su perfil)'
+
+
+@admin.register(Teacher)
+class TeacherAdmin(AuditMixin, ModelAdmin):
+    """Panel de administración para Profesores."""
+    form = TeacherAdminForm
+    list_display = ('get_full_name', 'personal_id', 'department', 'is_blacklisted')
+    search_fields = ('user__first_name', 'user__last_name', 'personal_id')
+    list_filter = ('is_blacklisted',)
+
+    def get_fieldsets(self, request, obj=None):
+        if not obj:
+            return (
+                ('Información Personal', {
+                    'fields': ('first_name', 'last_name', 'personal_id')
+                }),
+                ('Información Académica', {
+                    'fields': ('department',)
+                }),
+            )
+        return (
+            ('Información Personal', {
+                'fields': ('first_name', 'last_name', 'personal_id')
+            }),
+            ('Información Académica', {
+                'fields': ('department', 'is_blacklisted')
+            }),
+            ('Credenciales de Acceso (Autogeneradas)', {
+                'fields': ('username_display', 'email_display', 'default_password_info'),
+            }),
+        )
+
+    def get_readonly_fields(self, request, obj=None):
+        if obj:
+            return ('username_display', 'email_display', 'default_password_info')
+        return ()
+
+    @admin.display(description='Usuario')
+    def username_display(self, obj):
+        return obj.user.username
+
+    @admin.display(description='Correo')
+    def email_display(self, obj):
+        return obj.user.email
+
+    @admin.display(description='Contraseña Inicial')
+    def default_password_info(self, obj):
+        return f"El Carné de Identidad ({obj.personal_id}). El profesor puede cambiarla desde su perfil."
+
+    @admin.display(description='Nombre completo', ordering='user__last_name')
+    def get_full_name(self, obj):
+        return obj.user.get_full_name()
 
 
 def dashboard_callback(request, context):
@@ -339,12 +466,18 @@ def dashboard_callback(request, context):
         },
     ]
 
-    if request.user.is_superuser:
+    if request.user.is_superuser or request.user.groups.filter(name='Supervisores').exists():
         stats += [
             {
                 "title": "Total Estudiantes",
                 "metric": Student.objects.count(),
                 "icon": "person",
+                "color": "blue",
+            },
+            {
+                "title": "Total Profesores",
+                "metric": Teacher.objects.count(),
+                "icon": "school",
                 "color": "blue",
             },
             {
@@ -380,5 +513,27 @@ def dashboard_callback(request, context):
 
     context["chart_labels"] = json.dumps(labels, ensure_ascii=False)
     context["chart_data"] = json.dumps(data)
+
+    # --- TOP 5 LIBROS IA ---
+    # Traemos los 5 libros más recomendados, siempre y cuando hayan sido recomendados al menos 1 vez
+    top_ai_books = Book.objects.filter(
+        ai_recommendations_count__gt=0
+    ).order_by('-ai_recommendations_count')[:5]
+    
+    context["top_ai_books"] = top_ai_books
+
+    # --- GRÁFICO DE PASTEL (INVENTARIO FÍSICO) ---
+    # 1. Sumamos el stock total de TODOS los ejemplares físicos
+    resultado_stock = Book.objects.aggregate(total=Sum('total_stock'))
+    total_ejemplares = resultado_stock['total'] or 0
+    
+    # 2. Contamos cuántos están prestados ahora mismo
+    ejemplares_prestados = Loan.objects.filter(status="ACTIVE").count()
+    
+    # 3. Calculamos los disponibles
+    ejemplares_disponibles = max(0, total_ejemplares - ejemplares_prestados)
+    
+    # Lo pasamos al template como JSON [Disponibles, Prestados]
+    context["pie_chart_data"] = json.dumps([ejemplares_disponibles, ejemplares_prestados])
 
     return context

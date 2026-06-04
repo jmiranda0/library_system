@@ -76,28 +76,30 @@ class BookDetailView(DetailView):
 @method_decorator(login_required(login_url='/'), name='dispatch')
 class MyLoansView(ListView):
     """
-    Panel personal de préstamos del estudiante autenticado.
-
-    Solo accesible para usuarios con perfil de estudiante.
+    Panel personal de préstamos del estudiante o profesor autenticado.
     """
-
     template_name = 'my_loans.html'
     context_object_name = 'prestamos'
 
     def dispatch(self, request, *args, **kwargs):
-        """Redirige si el usuario no tiene perfil de estudiante."""
         if request.user.is_staff:
             return redirect('/panel/')
-        if not hasattr(request.user, 'student_profile'):
+        if not hasattr(request.user, 'student_profile') and not hasattr(request.user, 'teacher_profile'):
             return redirect('/catalogo/')
         return super().dispatch(request, *args, **kwargs)
 
     def get_queryset(self):
-        return (
-            Loan.objects.filter(student=self.request.user.student_profile)
-            .select_related('book')
-            .order_by('-loan_date')
-        )
+        user = self.request.user
+        
+        # Si es Estudiante
+        if hasattr(user, 'student_profile'):
+            return Loan.objects.filter(student=user.student_profile).select_related('book').order_by('-loan_date')
+            
+        # Si es Profesor
+        elif hasattr(user, 'teacher_profile'):
+            return Loan.objects.filter(teacher=user.teacher_profile).select_related('book').order_by('-loan_date')
+            
+        return Loan.objects.none()
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)

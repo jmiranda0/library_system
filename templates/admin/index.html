@@ -1,7 +1,9 @@
 {% extends 'admin/base.html' %}
 {% load i18n %}
 
-{% block title %}Dashboard | {{ site_title|default:_('Django site admin') }}{% endblock %}
+{% block title %}
+    Dashboard | {{ site_title|default:_('Django site admin') }}
+{% endblock %}
 
 {% block branding %}
     {% include "unfold/helpers/site_branding.html" %}
@@ -40,52 +42,158 @@
 </div>
 {% endif %}
 
-{# ── Gráfico de préstamos por mes ── #}
-{% if chart_data %}
-<div class="p-6 mt-4 border border-gray-200 rounded-md dark:border-gray-800">
-    <h3 class="mb-6 text-sm font-semibold tracking-widest uppercase opacity-50">
-        Préstamos por Mes
-    </h3>
-    <canvas id="chart-prestamos" height="80"></canvas>
+{# ── CONTENEDOR GRID: DOS COLUMNAS PARA LOS GRÁFICOS ── #}
+<div class="grid grid-cols-1 gap-6 mt-8 lg:grid-cols-2">
+    
+    <!-- GRÁFICO 1: Barras (Izquierda) -->
+    {% if chart_data %}
+    <div class="flex flex-col p-6 border border-gray-200 rounded-md dark:border-gray-800">
+        <h3 class="mb-6 text-sm font-semibold tracking-widest uppercase opacity-50">
+            Evolución de Préstamos
+        </h3>
+        <!-- relative y h-64 fuerzan a chart.js a respetar la altura -->
+        <div class="relative w-full h-72">
+            <canvas id="chart-prestamos"  class="absolute inset-0 w-full h-full"></canvas>
+        </div>
+    </div>
+    {% endif %}
+   
+
+    <!-- GRÁFICO 2: Pastel / Donut (Derecha) -->
+    {% if pie_chart_data %}
+    <div class="flex flex-col p-6 border border-gray-200 rounded-md dark:border-gray-800">
+        <h3 class="mb-4 text-sm font-semibold tracking-widest text-center uppercase opacity-50 lg:text-left">
+            Estado Físico del Inventario
+        </h3>
+        <div class="relative flex items-center justify-center flex-grow w-full h-64">
+            <canvas id="chart-inventario"></canvas>
+        </div>
+    </div>
+    {% endif %}
+
 </div>
 
+{# ── TABLA TOP 5: ANCHO COMPLETO ABAJO ── #}
+<div class="mt-8 mb-8">
+    <h2 class="mb-4 text-xl font-semibold text-gray-800 dark:text-gray-100">
+        <span class="mr-1 align-middle material-symbols-outlined text-primary-500 dark:text-primary-400">auto_awesome</span>
+        Top 5: Libros Más Recomendados por IA
+    </h2>
+
+    <div class="overflow-hidden border border-gray-200 rounded-md dark:border-gray-800">
+        <table class="w-full text-left border-collapse">
+            <thead>
+                <tr class="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-white/5">
+                    <th class="px-4 py-3 text-sm font-semibold text-gray-500 dark:text-gray-400">Libro</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-center text-gray-500 dark:text-gray-400">Recomendaciones</th>
+                    <th class="px-4 py-3 text-sm font-semibold text-center text-gray-500 dark:text-gray-400">Stock Disponible</th>
+                </tr>
+            </thead>
+            <tbody class="divide-y divide-gray-200 dark:divide-gray-800">
+                {% for book in top_ai_books %}
+                <tr class="transition-colors hover:bg-gray-50 dark:hover:bg-white/5">
+                    <td class="flex items-center gap-4 px-4 py-3">
+                        <div class="flex items-center justify-center flex-shrink-0 w-8 h-10 overflow-hidden bg-gray-100 rounded dark:bg-gray-800">
+                            {% if book.cover_image %}
+                                <img src="{{ book.cover_image }}" alt="Cover" class="object-cover w-full h-full">
+                            {% else %}
+                                <span class="text-gray-400 material-symbols-outlined dark:text-gray-500">book</span>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <p class="text-sm font-medium text-gray-900 dark:text-gray-200">{{ book.title }}</p>
+                            <p class="text-xs text-gray-500 dark:text-gray-400">{{ book.author }}</p>
+                        </div>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        <span class="inline-flex items-center justify-center px-2 py-1 text-xs font-medium rounded-md bg-primary-100 text-primary-700 dark:bg-primary-500/20 dark:text-primary-400">
+                            {{ book.ai_recommendations_count }} veces
+                        </span>
+                    </td>
+                    <td class="px-4 py-3 text-center">
+                        {% if book.available_stock > 0 %}
+                            <span class="text-sm font-medium text-emerald-600 dark:text-emerald-400">{{ book.available_stock }}</span>
+                        {% else %}
+                            <span class="text-sm font-medium text-red-500 dark:text-red-400">Agotado</span>
+                        {% endif %}
+                    </td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="3" class="px-4 py-8 text-sm text-center text-gray-500 dark:text-gray-400">
+                        Aún no hay recomendaciones registradas por el motor semántico.
+                    </td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>
+
+{# ── SCRIPTS DE GRÁFICOS (CHART.JS) ── #}
 <script>
   document.addEventListener('DOMContentLoaded', function() {
-      const ctx = document.getElementById('chart-prestamos').getContext('2d');
-      new Chart(ctx, {
-          type: 'bar',
-          data: {
-              labels: {{ chart_labels|safe }},
-              datasets: [{
-                  label: 'Préstamos',
-                  data: {{ chart_data|safe }},
-                  backgroundColor: 'rgba(99, 102, 241, 0.5)',
-                  borderColor: 'rgba(99, 102, 241, 1)',
-                  borderWidth: 1,
-                  borderRadius: 4,
-              }]
-          },
-          options: {
-              responsive: true,
-              plugins: {
-                  legend: { display: false },
+      // Para adaptar colores si el tema está en oscuro
+      const isDarkMode = document.documentElement.classList.contains('dark');
+      const textColor = isDarkMode ? '#9ca3af' : '#4b5563'; // Gris claro u oscuro
+
+      // 1. Gráfico de Barras
+      const ctxBar = document.getElementById('chart-prestamos');
+      if (ctxBar) {
+          new Chart(ctxBar.getContext('2d'), {
+              type: 'bar',
+              data: {
+                  labels: {{ chart_labels|safe }},
+                  datasets: [{
+                      label: 'Préstamos',
+                      data: {{ chart_data|safe }},
+                      backgroundColor: 'rgba(99, 102, 241, 0.5)', // Indigo 500
+                      borderColor: 'rgba(99, 102, 241, 1)',
+                      borderWidth: 1,
+                      borderRadius: 4,
+                  }]
               },
-              scales: {
-                  y: {
-                      beginAtZero: true,
-                      ticks: { stepSize: 1 },
-                      grid: {
-                          color: 'rgba(255,255,255,0.05)'
-                      }
-                  },
-                  x: {
-                      grid: { display: false }
+              options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  plugins: { legend: { display: false } },
+                  scales: {
+                      y: { beginAtZero: true, ticks: { stepSize: 1, color: textColor }, grid: { color: isDarkMode ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.05)' } },
+                      x: { ticks: { color: textColor }, grid: { display: false } }
                   }
               }
-          }
-      });
+          });
+      }
+
+      // 2. Gráfico Donut (Inventario)
+      const ctxPie = document.getElementById('chart-inventario');
+      if (ctxPie) {
+          new Chart(ctxPie.getContext('2d'), {
+              type: 'doughnut', // Usamos doughnut en vez de pie, se ve más moderno
+              data: {
+                  labels: ['Disponibles', 'Prestados'],
+                  datasets: [{
+                      data: {{ pie_chart_data|safe }},
+                      // Verde Esmeralda para disponibles, Rojo Rosa para prestados
+                      backgroundColor: ['rgba(16, 185, 129, 0.8)', 'rgba(244, 63, 94, 0.8)'],
+                      borderColor: ['rgba(16, 185, 129, 1)', 'rgba(244, 63, 94, 1)'],
+                      borderWidth: 1,
+                      hoverOffset: 4
+                  }]
+              },
+              options: {
+                  responsive: true,
+                  maintainAspectRatio: false,
+                  cutout: '70%', // Ancho del anillo interior
+                  plugins: {
+                      legend: {
+                          position: 'bottom',
+                          labels: { color: textColor, padding: 20, usePointStyle: true }
+                      }
+                  }
+              }
+          });
+      }
   });
 </script>
-{% endif %}
-
 {% endblock %}

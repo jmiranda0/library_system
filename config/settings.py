@@ -190,17 +190,18 @@ UNFOLD = {
                         "link": reverse_lazy("admin:library_student_changelist"),
                     },
                     {
-                        "title": "Registro de Auditoría",
-                        "icon": "history",
-                        "link": reverse_lazy("admin:library_auditlog_changelist"),
+                        "title": "Profesores",
+                        "icon": "school",
+                        "link": reverse_lazy("admin:library_teacher_changelist"),
                     },
+
                 ],
             },
             {
                 "title": "Administración del Sistema",
                 "items": [
                     {
-                        "title": "Administradores",
+                        "title": "Supervisores",
                         "icon": "admin_panel_settings",
                         "link": reverse_lazy("admin:library_administrator_changelist"),
                         "permission": lambda request: request.user.is_superuser,
@@ -209,13 +210,13 @@ UNFOLD = {
                         "title": "Bibliotecarios",
                         "icon": "badge",
                         "link": reverse_lazy("admin:library_librarian_changelist"),
-                        "permission": lambda request: request.user.is_superuser or request.user.groups.filter(name='Administradores').exists(),
+                        "permission": lambda request: request.user.is_superuser or request.user.groups.filter(name='Supervisores').exists(),
                     },
                     {
                         "title": "Estudiantes",
                         "icon": "person",
                         "link": reverse_lazy("admin:library_student_changelist"),
-                        "permission": lambda request: request.user.is_superuser or request.user.groups.filter(name='Administradores').exists(),
+                        "permission": lambda request: request.user.is_superuser or request.user.groups.filter(name='Supervisores').exists(),
                     },
                     {
                         "title": "Usuarios",
@@ -224,10 +225,15 @@ UNFOLD = {
                         "permission": lambda request: request.user.is_superuser,
                     },
                     {
-                        "title": "Grupos y Roles",
+                        "title": "Roles",
                         "icon": "group",
                         "link": reverse_lazy("admin:auth_group_changelist"),
                         "permission": lambda request: request.user.is_superuser,
+                    },
+                    {
+                        "title": "Registro de Auditoría",
+                        "icon": "history",
+                        "link": reverse_lazy("admin:library_auditlog_changelist"),
                     },
                 ],
             },
