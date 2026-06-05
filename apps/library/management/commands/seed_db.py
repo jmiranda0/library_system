@@ -1,11 +1,10 @@
 import random
 from datetime import date, timedelta
-from django.contrib.auth.models import User
+from django.contrib.auth.models import User, Group
 from django.core.management.base import BaseCommand
-from apps.library.models import Book, Student, Loan
-from apps.library.forms import StudentAdminForm
+from apps.library.models import Book, Student, Teacher, Loan
 
-# Datos falsos para sembrar
+# LOS 30 LIBROS ORIGINALES
 BOOKS_DATA = [
     {"title": "Cien Años de Soledad", "author": "Gabriel García Márquez", "synopsis": "Realismo mágico en Macondo. La estirpe de los Buendía y su destino trágico y solitario.", "total_stock": 5},
     {"title": "Clean Code", "author": "Robert C. Martin", "synopsis": "Manual de ingeniería de software sobre código limpio, refactorización y mantenibilidad.", "total_stock": 3},
@@ -17,7 +16,6 @@ BOOKS_DATA = [
     {"title": "El Código Da Vinci", "author": "Dan Brown", "synopsis": "Thriller sobre secretos religiosos ocultos en obras de arte de Leonardo da Vinci.", "total_stock": 5},
     {"title": "Breve historia del tiempo", "author": "Stephen Hawking", "synopsis": "Explicación de los agujeros negros, el Big Bang y la naturaleza del universo.", "total_stock": 3},
     {"title": "Orgullo y Prejuicio", "author": "Jane Austen", "synopsis": "Novela clásica sobre amor, clases sociales y malentendidos en la Inglaterra georgiana.", "total_stock": 4},
-    # 20 Libros adicionales
     {"title": "Crímenes Ilustrados", "author": "Modesto García", "synopsis": "Libro de acertijos visuales y misterios policiales que desafían la lógica del lector.", "total_stock": 5},
     {"title": "El Alquimista", "author": "Paulo Coelho", "synopsis": "Fábula espiritual sobre un pastor que busca su Leyenda Personal en el desierto egipcio.", "total_stock": 4},
     {"title": "Crimen y Castigo", "author": "Fiódor Dostoyevski", "synopsis": "Exploración psicológica de la culpa y la redención tras un asesinato en San Petersburgo.", "total_stock": 2},
@@ -40,13 +38,13 @@ BOOKS_DATA = [
     {"title": "La Odisea", "author": "Homero", "synopsis": "El regreso épico de Ulises a Ítaca tras la Guerra de Troya, enfrentando monstruos y dioses.", "total_stock": 2}
 ]
 
+# LOS 10 ESTUDIANTES ORIGINALES
 STUDENTS_DATA = [
     {"user": {"username": "carlos", "first_name": "Carlos", "last_name": "Pérez"}, "student": {"personal_id": "01020304051", "career": "Informática", "academic_year": 3, "is_blacklisted": False}},
     {"user": {"username": "ana", "first_name": "Ana", "last_name": "Gómez"}, "student": {"personal_id": "99080706052", "career": "Arquitectura", "academic_year": 2, "is_blacklisted": False}},
     {"user": {"username": "luis", "first_name": "Luis", "last_name": "Martínez"}, "student": {"personal_id": "02040608013", "career": "Medicina", "academic_year": 4, "is_blacklisted": False}},
     {"user": {"username": "el.moroso", "first_name": "Pedro", "last_name": "Mala-Paga"}, "student": {"personal_id": "88080808088", "career": "Derecho", "academic_year": 5, "is_blacklisted": True}},
     {"user": {"username": "deudora.pro", "first_name": "Marta", "last_name": "Sancionada"}, "student": {"personal_id": "77070707077", "career": "Psicología", "academic_year": 1, "is_blacklisted": True}},
-    # 5 Estudiantes adicionales
     {"user": {"username": "sofia", "first_name": "Sofía", "last_name": "López"}, "student": {"personal_id": "11121314156", "career": "Biología", "academic_year": 2, "is_blacklisted": False}},
     {"user": {"username": "juan", "first_name": "Juan", "last_name": "Castro"}, "student": {"personal_id": "22232425267", "career": "Química", "academic_year": 3, "is_blacklisted": False}},
     {"user": {"username": "elena", "first_name": "Elena", "last_name": "Blanco"}, "student": {"personal_id": "33343536378", "career": "Matemáticas", "academic_year": 4, "is_blacklisted": False}},
@@ -54,138 +52,162 @@ STUDENTS_DATA = [
     {"user": {"username": "laura", "first_name": "Laura", "last_name": "Torres"}, "student": {"personal_id": "55565758590", "career": "Economía", "academic_year": 2, "is_blacklisted": False}},
 ]
 
+TEACHERS_DATA = [
+    {"user": {"username": "profe_juan", "first_name": "Juan", "last_name": "Profesor"}, "teacher": {"personal_id": "60010101011", "department": "Ciencias de la Computación", "is_blacklisted": False}},
+    {"user": {"username": "profe_maria", "first_name": "María", "last_name": "Docente"}, "teacher": {"personal_id": "70020202022", "department": "Matemática Aplicada", "is_blacklisted": False}},
+]
+
 class Command(BaseCommand):
-    help = 'Puebla la base de datos con libros, estudiantes y préstamos falsos para pruebas.'
+    help = 'Puebla la base de datos con libros, estudiantes, profesores y volumen de préstamos para gráficos.'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("Borrando datos anteriores (Préstamos, Estudiantes, Libros)...")
+        self.stdout.write("Borrando datos anteriores (Préstamos, Estudiantes, Profesores, Libros)...")
         Loan.objects.all().delete()
         Student.objects.all().delete()
+        Teacher.objects.all().delete()
         Book.objects.all().delete()
         
-        # Eliminar usuarios de estudiantes para recrearlos limpios
-        student_usernames = [s['user']['username'] for s in STUDENTS_DATA]
-        User.objects.filter(username__in=student_usernames).delete()
+        # Eliminar usuarios creados por el seeder
+        usernames_to_delete = [s['user']['username'] for s in STUDENTS_DATA] + \
+                              [t['user']['username'] for t in TEACHERS_DATA] + \
+                              ['supervisor1', 'biblio1', 'biblio2']
+        User.objects.filter(username__in=usernames_to_delete).delete()
 
-        self.stdout.write("Creando libros...")
+        # ---------------------------------------------------------
+        # 1. ROLES ADMINISTRATIVOS (Contraseñas específicas)
+        # ---------------------------------------------------------
+        self.stdout.write("Creando Supervisor y Bibliotecarios...")
+        grupo_sup, _ = Group.objects.get_or_create(name='Supervisores')
+        grupo_bib, _ = Group.objects.get_or_create(name='Bibliotecarios')
+
+        sup = User.objects.create_user(username='supervisor1', password='password123', first_name='Jefe', last_name='Supervisor', is_staff=True)
+        sup.groups.add(grupo_sup)
+
+        # Bibliotecarios (Pass: biblioteca123)
+        for i in range(1, 3):
+            bib = User.objects.create_user(username=f'biblio{i}', password='biblioteca123', first_name=f'Biblio{i}', last_name='Staff', is_staff=True)
+            bib.groups.add(grupo_bib)
+
+        # ---------------------------------------------------------
+        # 2. LIBROS (Con recomendaciones para el Top 5 de IA)
+        # ---------------------------------------------------------
+        self.stdout.write("Creando 30 libros...")
         books = []
         for data in BOOKS_DATA:
+            # Simulamos que la IA ya recomendó estos libros varias veces para el gráfico
+            data['ai_recommendations_count'] = random.randint(0, 45)
             book = Book.objects.create(**data)
             books.append(book)
         
-        self.stdout.write("Creando estudiantes...")
+        # ---------------------------------------------------------
+        # 3. ESTUDIANTES (Contraseña: Su Carné de Identidad)
+        # ---------------------------------------------------------
+        self.stdout.write("Creando 10 estudiantes...")
+        grupo_est, _ = Group.objects.get_or_create(name='Estudiantes')
         students = []
-        # Utilizamos el formulario personalizado para que cree el user, asigne el grupo y cree el student
         for data in STUDENTS_DATA:
-            # Simulamos un POST al form
-            form_data = {
-                'username': data['user']['username'],
-                'first_name': data['user']['first_name'],
-                'last_name': data['user']['last_name'],
-                'password': 'password123', # Contraseña por defecto
-                'personal_id': data['student']['personal_id'],
-                'career': data['student']['career'],
-                'academic_year': data['student']['academic_year'],
-                'is_blacklisted': data['student']['is_blacklisted']
-            }
-            form = StudentAdminForm(data=form_data)
-            if form.is_valid():
-                student = form.save()
-                students.append(student)
-            else:
-                self.stdout.write(self.style.ERROR(f"Error creando estudiante {data['user']['username']}: {form.errors}"))
+            # Creamos el user directo, es más seguro en el seeder que usar el Form
+            u = User.objects.create_user(
+                username=data['user']['username'],
+                password=data['student']['personal_id'], # Contraseña = Carnet
+                first_name=data['user']['first_name'],
+                last_name=data['user']['last_name']
+            )
+            u.groups.add(grupo_est)
+            student = Student.objects.create(
+                user=u,
+                personal_id=data['student']['personal_id'],
+                career=data['student']['career'],
+                academic_year=data['student']['academic_year'],
+                is_blacklisted=data['student']['is_blacklisted']
+            )
+            students.append(student)
 
-        self.stdout.write("Creando préstamos masivos e interactividad...")
-        
+        # ---------------------------------------------------------
+        # 4. PROFESORES
+        # ---------------------------------------------------------
+        self.stdout.write("Creando profesores...")
+        grupo_prof, _ = Group.objects.get_or_create(name='Profesores')
+        teachers = []
+        for data in TEACHERS_DATA:
+            u = User.objects.create_user(
+                username=data['user']['username'],
+                password='password123',
+                first_name=data['user']['first_name'],
+                last_name=data['user']['last_name']
+            )
+            u.groups.add(grupo_prof)
+            teacher = Teacher.objects.create(
+                user=u,
+                personal_id=data['teacher']['personal_id'],
+                department=data['teacher']['department'],
+                is_blacklisted=data['teacher']['is_blacklisted']
+            )
+            teachers.append(teacher)
+
+        # -----------# ---------------------------------------------------------
+        # 5. PRÉSTAMOS MASIVOS PARA GRAFICAR
+        # ---------------------------------------------------------
+        self.stdout.write("Generando volumen histórico de préstamos...")
         today = date.today()
         
-        # 1. Pedro Mala-Paga (el.moroso): Historial de desastre
-        pedro = students[3]
-        pedro.is_blacklisted = False
-        pedro.save()
-
-        # A. Un libro que NUNCA devolvió (Sigue ACTIVO pero vencido hace meses)
-        Loan.objects.create(
-            book=books[0], # Cien años de soledad
-            student=pedro,
-            status='ACTIVE',
-            expected_return_date=today + timedelta(days=7) # Temporal para pasar validación
-        )
-        l_pedro_vencido = Loan.objects.last()
-        Loan.objects.filter(pk=l_pedro_vencido.pk).update(
-            loan_date=today - timedelta(days=150),
-            expected_return_date=today - timedelta(days=120)
-        )
-
-        # B. Libros devueltos con 6 meses de retraso
-        for i in range(2):
-            l_late = Loan(
-                book=random.choice(books),
-                student=pedro,
-                status='RETURNED',
-                expected_return_date=today + timedelta(days=7), # Temporal
-            )
-            l_late.save()
-            Loan.objects.filter(pk=l_late.pk).update(
-                loan_date=today - timedelta(days=230),
-                expected_return_date=today - timedelta(days=215),
-                actual_return_date=today - timedelta(days=15)
-            )
+        # A. Casos de lista negra: Pedro y Marta
+        pedro = students[3] # el.moroso
+        pedro.is_blacklisted = False; pedro.save()
         
-        pedro.is_blacklisted = True
-        pedro.save()
+        # CORRECCIÓN: Le sumamos días a 'today' para que pase la validación de tu modelo
+        Loan.objects.create(book=books[0], student=pedro, status='ACTIVE', expected_return_date=today + timedelta(days=7))
+        Loan.objects.filter(pk=Loan.objects.last().pk).update(loan_date=today - timedelta(days=150), expected_return_date=today - timedelta(days=120))
+        pedro.is_blacklisted = True; pedro.save()
 
-        # 2. Interactividad para el resto de estudiantes (Préstamos aleatorios)
+        marta = students[4] # deudora.pro
+        marta.is_blacklisted = False; marta.save()
+        Loan.objects.create(book=books[5], student=marta, status='OVERDUE', expected_return_date=today + timedelta(days=7))
+        Loan.objects.filter(pk=Loan.objects.last().pk).update(loan_date=today - timedelta(days=90), expected_return_date=today - timedelta(days=75))
+        marta.is_blacklisted = True; marta.save()
+
+         # B. Generar entre 3 y 8 préstamos históricos para CADA ESTUDIANTE SANO
         for student in students:
-            if student.user.username in ['el.moroso', 'deudora.pro']:
-                continue
-                
-            num_loans = random.randint(2, 5)
+            if student.is_blacklisted: continue
+            
+            num_loans = random.randint(3, 8)
             for _ in range(num_loans):
-                tipo = random.choice(['RETURNED', 'ACTIVE', 'RETURNED'])
                 book = random.choice(books)
                 
-                if tipo == 'RETURNED':
-                    l = Loan(
-                        book=book,
-                        student=student,
-                        status='RETURNED',
-                        expected_return_date=today + timedelta(days=7), # Temporal
-                    )
-                    l.save()
-                    dias_atras = random.randint(20, 60)
+                # 80% de probabilidad de que sea devuelto (historial viejo), 20% de que sea activo
+                if random.random() < 0.8:
+                    # Préstamo Devuelto (hace 1 a 6 meses atrás)
+                    # CORRECCIÓN AQUÍ: Verificamos stock ANTES de intentar crearlo
+                    if book.available_stock > 0:
+                        dias_atras = random.randint(30, 180)
+                        l = Loan.objects.create(book=book, student=student, status='RETURNED', expected_return_date=today + timedelta(days=7))
+                        Loan.objects.filter(pk=l.pk).update(
+                            loan_date=today - timedelta(days=dias_atras),
+                            expected_return_date=today - timedelta(days=dias_atras - 15),
+                            actual_return_date=today - timedelta(days=dias_atras - 10) # Entregó a tiempo
+                        )
+                else:
+                    # Préstamo Activo reciente
+                    if book.available_stock > 0:
+                        Loan.objects.create(
+                            book=book, student=student, status='ACTIVE',
+                            expected_return_date=today + timedelta(days=random.randint(1, 15))
+                        )
+        # C. Generar algunos préstamos para profesores
+        for teacher in teachers:
+            for _ in range(3):
+                book = random.choice(books)
+                if book.available_stock > 0:
+                    # CORRECCIÓN: Agregado timedelta
+                    l = Loan.objects.create(book=book, teacher=teacher, status='RETURNED', expected_return_date=today + timedelta(days=7))
+                    dias_atras = random.randint(10, 100)
                     Loan.objects.filter(pk=l.pk).update(
                         loan_date=today - timedelta(days=dias_atras),
-                        expected_return_date=today - timedelta(days=dias_atras - 15),
-                        actual_return_date=today - timedelta(days=random.randint(1, dias_atras - 16))
-                    )
-                else:
-                    Loan.objects.create(
-                        book=book,
-                        student=student,
-                        status='ACTIVE',
-                        expected_return_date=today + timedelta(days=random.randint(1, 15))
+                        expected_return_date=today - timedelta(days=dias_atras - 30),
+                        actual_return_date=today - timedelta(days=dias_atras - 28)
                     )
 
-        # 3. Marta (deudora.pro) - Bloqueada por un préstamo muy viejo
-        marta = students[4]
-        marta.is_blacklisted = False
-        marta.save()
-        
-        l_marta = Loan(
-            book=books[5], # Harry Potter
-            student=marta,
-            status='OVERDUE',
-            expected_return_date=today + timedelta(days=7), # Temporal
-        )
-        l_marta.save()
-        Loan.objects.filter(pk=l_marta.pk).update(
-            loan_date=today - timedelta(days=90),
-            expected_return_date=today - timedelta(days=75)
-        )
-        
-        marta.is_blacklisted = True
-        marta.save()
-
-        self.stdout.write(self.style.SUCCESS("¡Base de datos poblada exitosamente!"))
-        self.stdout.write(self.style.WARNING("Los estudiantes tienen la contraseña: password123"))
+        self.stdout.write(self.style.SUCCESS("✅ ¡Base de datos poblada exitosamente!"))
+        self.stdout.write(self.style.WARNING("▶ Supervisores/Profesores pass: password123"))
+        self.stdout.write(self.style.WARNING("▶ Bibliotecarios pass: biblioteca123"))
+        self.stdout.write(self.style.WARNING("▶ Estudiantes pass: SU CARNÉ DE IDENTIDAD (Ej. carlos = 01020304051)"))
