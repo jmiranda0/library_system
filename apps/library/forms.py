@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import transaction
 
 from unfold.widgets import UnfoldAdminTextInputWidget, UnfoldAdminPasswordWidget, UnfoldAdminEmailInputWidget
-from .models import Librarian, Student, Teacher
+from .models import Librarian, Student, Teacher, Administrator
 
 
 class StudentAdminForm(forms.ModelForm):
@@ -251,7 +251,77 @@ class LibrarianAdminForm(forms.ModelForm):
             self.save_m2m()
         return user
     
+class SystemAdminForm(forms.ModelForm):
+    """
+    Formulario para Administradores del Sistema.
+    Crea usuarios con acceso técnico, pero SIN acceso al negocio (No Superuser).
+    """
+    username = forms.CharField(max_length=150, label='Nombre de Usuario', required=False, widget=UnfoldAdminTextInputWidget)
+    first_name = forms.CharField(max_length=150, label='Nombre', required=True, widget=UnfoldAdminTextInputWidget)
+    last_name = forms.CharField(max_length=150, label='Apellidos', required=True, widget=UnfoldAdminTextInputWidget)
+    password = forms.CharField(widget=UnfoldAdminPasswordWidget, required=False, label='Contraseña', help_text='Por defecto será: admin123')
 
+    class Meta:
+        model = Administrator
+        fields = ['is_active']
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        if self.instance and self.instance.pk:
+            self.fields['username'].initial = self.instance.username
+            self.fields['first_name'].initial = self.instance.first_name
+            self.fields['last_name'].initial = self.instance.last_name
+            self.fields['username'].widget.attrs['readonly'] = True
+            self.fields['password'].widget = forms.HiddenInput()
+            self.fields['password'].required = False
+
+    def clean(self):
+        cleaned_data = super().clean()
+        username = cleaned_data.get('username')
+        first_name = cleaned_data.get('first_name')
+        last_name = cleaned_data.get('last_name')
+
+        if not username and first_name and last_name:
+            import unicodedata
+            def clean_text(text):
+                return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn').lower().split()[0]
+            
+            # Formato moderno y limpio: admin.nombre.apellido
+            base_username = f"admin.{clean_text(first_name)}.{clean_text(last_name)}"
+            final_username = base_username
+            counter = 1
+            query = User.objects.all()
+            if self.instance and self.instance.pk:
+                query = query.exclude(pk=self.instance.pk)
+
+            while query.filter(username=final_username).exists():
+                final_username = f"{base_username}{counter}"
+                counter += 1
+                
+            cleaned_data['username'] = final_username
+
+        return cleaned_data
+
+    @transaction.atomic
+    def save(self, commit=True):
+        user = super().save(commit=False)
+        user.username = self.cleaned_data.get('username')
+        user.first_name = self.cleaned_data.get('first_name')
+        user.last_name = self.cleaned_data.get('last_name')
+
+        if not user.pk:
+            user.email = f"{user.username}@cujae.edu.cu"
+            user.is_staff = True
+            user.is_superuser = False
+            user.set_password(self.cleaned_data.get('password') or "admin123")
+
+        if commit:
+            user.save()
+            grupo, _ = Group.objects.get_or_create(name='Administradores')
+            user.groups.add(grupo)
+            self.save_m2m()
+        return user
+    
 class TeacherAdminForm(forms.ModelForm):
     """
     Formulario para la creación y edición de Profesores.

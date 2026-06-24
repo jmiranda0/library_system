@@ -57,7 +57,6 @@ class Book(models.Model):
         verbose_name_plural = 'Libros'
         ordering = ['title']
 
-
 def validate_ci(value: str) -> None:
     """
     Valida que el carné de identidad cubano tenga formato correcto.
@@ -105,7 +104,6 @@ def validate_ci(value: str) -> None:
             'lo cual no es válido.'
         )
 
-
 class Student(models.Model):
     """Modelo que representa a un estudiante vinculado a una cuenta de usuario."""
 
@@ -151,7 +149,6 @@ class Student(models.Model):
         verbose_name_plural = 'Estudiantes'
         ordering = ['user__last_name', 'user__first_name']
 
-
 class AuditLog(models.Model):
     """Registro de auditoría para rastrear acciones del sistema."""
 
@@ -183,7 +180,6 @@ class AuditLog(models.Model):
         verbose_name_plural = 'Registros de Auditoría'
         ordering = ['-timestamp']
 
-
 class Librarian(User):
     """
     Modelo Proxy para gestionar Bibliotecarios de forma independiente en el Admin.
@@ -195,17 +191,15 @@ class Librarian(User):
         verbose_name = 'Bibliotecario'
         verbose_name_plural = 'Bibliotecarios'
 
-
 class Administrator(User):
     """
-    Modelo Proxy para gestionar Supervisoress de forma independiente en el Admin.
+    Modelo Proxy para gestionar Administrador del Sistemas de forma independiente en el Admin.
     No crea una tabla nueva — solo proporciona una interfaz diferente sobre User.
     """
     class Meta:
         proxy = True
-        verbose_name = 'Supervisor'
-        verbose_name_plural = 'Supervisores'
-
+        verbose_name = 'Administrador del Sistema'
+        verbose_name_plural = 'Administrador del Sistemas'
 
 class Teacher(models.Model):
     """Modelo que representa a un profesor vinculado a una cuenta de usuario."""
@@ -243,7 +237,6 @@ class Teacher(models.Model):
         verbose_name_plural = 'Profesores'
         ordering = ['user__last_name', 'user__first_name']
 
-
 class Loan(models.Model):
     """Modelo que representa un préstamo de libro a un estudiante o profesor."""
 
@@ -259,7 +252,7 @@ class Loan(models.Model):
         verbose_name='Libro',
     )
     
-    # MODIFICADO: Ahora el estudiante puede ser nulo (porque podría ser un profesor)
+    # El estudiante puede ser nulo (porque podría ser un profesor)
     student = models.ForeignKey(
         Student,
         on_delete=models.PROTECT,
@@ -269,7 +262,7 @@ class Loan(models.Model):
         blank=True, # <--- IMPORTANTE
     )
     
-    # NUEVO: Agregamos la relación con el Profesor
+    # Agregamos la relación con el Profesor
     teacher = models.ForeignKey(
         Teacher,
         on_delete=models.PROTECT,
@@ -307,7 +300,7 @@ class Loan(models.Model):
         super().clean()
         errors: dict[str, str] = {}
 
-        # 1. REGLA NUEVA: Debe haber un estudiante O un profesor, no ambos, ni ninguno.
+        # 1.Debe haber un estudiante O un profesor, no ambos, ni ninguno.
         if not self.student_id and not self.teacher_id:
             raise ValidationError('El préstamo debe estar asignado a un Estudiante o a un Profesor.')
         

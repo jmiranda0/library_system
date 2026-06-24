@@ -3,9 +3,8 @@ from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as 
 from django.contrib.auth.models import User, Group
 from unfold.admin import ModelAdmin
 from .models import AuditLog, Book, Loan, Student, Librarian, Administrator, Teacher
-from .forms import StudentAdminForm, LibrarianAdminForm, TeacherAdminForm
-from .services import _write_audit_log, create_loan, return_loan
-
+from .forms import StudentAdminForm, LibrarianAdminForm, TeacherAdminForm, SystemAdminForm
+from .services import _write_audit_log
 
 from apps.library.models import Book, Loan, Student
 from django.contrib.auth.models import User
@@ -233,7 +232,7 @@ class AuditLogAdmin(ModelAdmin):
         Los superusuarios (Admin) mantienen acceso total.
         """
         qs = super().get_queryset(request)
-        if request.user.is_superuser or request.user.groups.filter(name='Supervisores').exists():
+        if request.user.is_superuser or request.user.groups.filter(name='Administradores').exists():
             return qs
         # El bibliotecario solo ve lo que él mismo registró
         return qs.filter(user_actor=request.user.username)
@@ -319,35 +318,24 @@ class LibrarianAdmin(AuditMixin, ModelAdmin):
 
 @admin.register(Administrator)
 class AdministratorAdmin(AuditMixin, ModelAdmin):
-    form = LibrarianAdminForm
+    """Panel exclusivo para Administradores de TI (Informáticos)."""
+    form = SystemAdminForm
     list_display = ('username', 'get_full_name_display', 'email', 'is_active')
     search_fields = ('username', 'first_name', 'last_name', 'email')
     list_filter = ('is_active',)
 
+    
     def get_fieldsets(self, request, obj=None):
         if not obj:
             return (
-                ('Información Personal', {
-                    'fields': ('first_name', 'last_name')
-                }),
-                ('Datos de Autenticación', {
-                    'fields': ('username', 'password'),
-                    'description': 'Si se dejan en blanco, el sistema los generará automáticamente.'
-                }),
-                ('Estado de la Cuenta', {
-                    'fields': ('is_active',)
-                }),
+                ('Información Personal', {'fields': ('first_name', 'last_name')}),
+                ('Datos de Autenticación', {'fields': ('username', 'password'), 'description': 'Dejar en blanco para autogenerar.'}),
+                ('Estado de la Cuenta', {'fields': ('is_active',)}),
             )
         return (
-            ('Información Personal', {
-                'fields': ('first_name', 'last_name')
-            }),
-            ('Credenciales de Acceso (Solo lectura)', {
-                'fields': ('username_display', 'email_display', 'default_password_info'),
-            }),
-            ('Estado de la Cuenta', {
-                'fields': ('is_active',)
-            }),
+            ('Información Personal', {'fields': ('first_name', 'last_name')}),
+            ('Credenciales de Acceso', {'fields': ('username_display', 'email_display', 'default_password_info')}),
+            ('Estado de la Cuenta', {'fields': ('is_active',)}),
         )
 
     def get_readonly_fields(self, request, obj=None):
@@ -357,14 +345,22 @@ class AdministratorAdmin(AuditMixin, ModelAdmin):
 
     def get_queryset(self, request):
         qs = super().get_queryset(request)
-        return qs.filter(groups__name='Supervisores')
+        return qs.filter(groups__name='Administradores')
 
     def save_model(self, request, obj, form, change):
+        
         obj.is_staff = True
+        # Guardamos el usuario en la BD (esto dispara el AuditMixin también)
         super().save_model(request, obj, form, change)
+        
+        # Le asignamos el grupo mágicamente
         from django.contrib.auth.models import Group
-        grupo, _ = Group.objects.get_or_create(name='Supervisores')
+        grupo, _ = Group.objects.get_or_create(name='Administradores')
         obj.groups.add(grupo)
+
+    # EL BLOQUEO DE SEGURIDAD (Soft Delete)
+    def has_delete_permission(self, request, obj=None) -> bool:
+        return False
 
     @admin.display(description='Nombre completo')
     def get_full_name_display(self, obj):
@@ -380,7 +376,7 @@ class AdministratorAdmin(AuditMixin, ModelAdmin):
 
     @admin.display(description='Contraseña Inicial')
     def default_password_info(self, obj):
-        return 'biblioteca123 (el supervisor puede cambiarla desde su perfil)'
+        return 'admin123 (cambiar en primer inicio de sesión)'
 
 
 @admin.register(Teacher)
@@ -466,7 +462,7 @@ def dashboard_callback(request, context):
         },
     ]
 
-    if request.user.is_superuser or request.user.groups.filter(name='Supervisores').exists():
+    if request.user.is_superuser or request.user.groups.filter(name='Administradores').exists():
         stats += [
             {
                 "title": "Total Estudiantes",

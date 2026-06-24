@@ -7,14 +7,14 @@ GROUPS_PERMISSIONS = {
         'student':  ['view', 'change'],  # no add ni delete
         'teacher':  ['view', 'change'],
         'loan':     ['view', 'add', 'change'],
-        'auditlog': ['view'],
     },
-    'Supervisores': {
+    'Administradores': {
+        'user':      ['view', 'add', 'change'],
+        'group':    ['view', 'add', 'change', 'delete'],
         'student':   ['view', 'add', 'change', 'delete'],
         'teacher':   ['view', 'add', 'change', 'delete'],
         'librarian': ['view', 'add', 'change', 'delete'],
-        'book':      ['view'],  # solo lectura
-        'loan':      ['view'],  # solo lectura
+        'administrator': ['view', 'add', 'change'],
         'auditlog':  ['view'],
     },
     'Estudiantes': {
