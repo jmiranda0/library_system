@@ -1,172 +1,200 @@
 import random
-from datetime import date, timedelta
+import datetime
 from django.contrib.auth.models import User, Group
 from django.core.management.base import BaseCommand
 from apps.library.models import Book, Student, Teacher, Loan
-from apps.library.forms import StudentAdminForm
+
+# ==========================================
+# 1. DICCIONARIOS DE DATOS BASE
+# ==========================================
+
+CUJAE_CAREERS = [
+    "Ingeniería Informática", "Ingeniería Civil", "Arquitectura", 
+    "Ingeniería Industrial", "Ingeniería Automática", "Ingeniería Mecánica", 
+    "Ingeniería Eléctrica", "Ingeniería Química", "Ing. de Telecomunicaciones"
+]
+
+DEPARTMENTS = [
+    "Ciencias de la Computación", "Matemática Aplicada", "Física", 
+    "Estructuras", "Sistemas Eléctricos", "Humanidades", "Termodinámica"
+]
+
+NOMBRES = ["Carlos", "Ana", "Luis", "Marta", "Jorge", "Elena", "Pedro", "Sofia", "Juan", "Laura", "Miguel", "Carmen", "David", "Lucia", "Raul", "Paula", "Jose", "Diana", "Alejandro", "Valeria"]
+APELLIDOS = ["Perez", "Gomez", "Martinez", "Rodriguez", "Fernandez", "Lopez", "Diaz", "Torres", "Ruiz", "Alonso", "Hernandez", "Garcia", "Cruz", "Reyes", "Morales", "Ortiz"]
 
 BOOKS_DATA = [
-    {"title": "Cien Años de Soledad", "author": "Gabriel García Márquez", "synopsis": "Realismo mágico en Macondo. La estirpe de los Buendía y su destino trágico y solitario.", "total_stock": 5},
-    {"title": "Clean Code", "author": "Robert C. Martin", "synopsis": "Manual de ingeniería de software sobre código limpio, refactorización y mantenibilidad.", "total_stock": 3},
-    {"title": "Don Quijote de la Mancha", "author": "Miguel de Cervantes", "synopsis": "Las aventuras de un hidalgo loco que cree ser caballero en la España del Siglo de Oro.", "total_stock": 2},
-    {"title": "El Señor de los Anillos: La Comunidad del Anillo", "author": "J.R.R. Tolkien", "synopsis": "Fantasía épica sobre la misión de destruir un anillo maligno para salvar la Tierra Media.", "total_stock": 4},
-    {"title": "1984", "author": "George Orwell", "synopsis": "Distopía sobre el Gran Hermano, la vigilancia totalitaria y la manipulación de la verdad.", "total_stock": 6},
-    {"title": "Harry Potter y la Piedra Filosofal", "author": "J.K. Rowling", "synopsis": "Un niño descubre que es mago y asiste a Hogwarts para enfrentar al oscuro Lord Voldemort.", "total_stock": 8},
-    {"title": "Sapiens: De animales a dioses", "author": "Yuval Noah Harari", "synopsis": "Historia de la humanidad desde la prehistoria hasta el futuro tecnológico y biológico.", "total_stock": 3},
-    {"title": "El Código Da Vinci", "author": "Dan Brown", "synopsis": "Thriller sobre secretos religiosos ocultos en obras de arte de Leonardo da Vinci.", "total_stock": 5},
-    {"title": "Breve historia del tiempo", "author": "Stephen Hawking", "synopsis": "Explicación de los agujeros negros, el Big Bang y la naturaleza del universo.", "total_stock": 3},
-    {"title": "Orgullo y Prejuicio", "author": "Jane Austen", "synopsis": "Novela clásica sobre amor, clases sociales y malentendidos en la Inglaterra georgiana.", "total_stock": 4},
-    {"title": "Crímenes Ilustrados", "author": "Modesto García", "synopsis": "Libro de acertijos visuales y misterios policiales que desafían la lógica del lector.", "total_stock": 5},
-    {"title": "El Alquimista", "author": "Paulo Coelho", "synopsis": "Fábula espiritual sobre un pastor que busca su Leyenda Personal en el desierto egipcio.", "total_stock": 4},
-    {"title": "Crimen y Castigo", "author": "Fiódor Dostoyevski", "synopsis": "Exploración psicológica de la culpa y la redención tras un asesinato en San Petersburgo.", "total_stock": 2},
-    {"title": "El Principito", "author": "Antoine de Saint-Exupéry", "synopsis": "Cuento filosófico sobre un pequeño príncipe que viaja por planetas aprendiendo sobre la vida.", "total_stock": 10},
-    {"title": "Python Crash Course", "author": "Eric Matthes", "synopsis": "Introducción práctica a la programación con Python, proyectos y mejores prácticas.", "total_stock": 5},
+    {"title": "Clean Code", "author": "Robert C. Martin", "total_stock": 15, "synopsis": "Manual de ingeniería de software sobre código limpio, refactorización y mantenibilidad. Aborda principios como nombres significativos, funciones pequeñas, manejo de errores y pruebas unitarias."},
+    {"title": "Design Patterns", "author": "Erich Gamma et al.", "total_stock": 10, "synopsis": "Los 23 patrones de diseño orientados a objetos clásicos. Incluye patrones creacionales, estructurales y de comportamiento con ejemplos aplicados al desarrollo de software empresarial."},
+    {"title": "Introduction to Algorithms", "author": "Thomas H. Cormen", "total_stock": 12, "synopsis": "El texto definitivo sobre estructuras de datos y análisis de complejidad de algoritmos. Cubre ordenamiento, árboles, grafos y programación dinámica."},
+    {"title": "Artificial Intelligence: A Modern Approach", "author": "Stuart Russell", "total_stock": 8, "synopsis": "Libro de texto base para IA. Aborda búsqueda lógica, aprendizaje automático, procesamiento de lenguaje natural y robótica."},
+    {"title": "Computer Networks", "author": "Andrew S. Tanenbaum", "total_stock": 14, "synopsis": "Explicación detallada de la arquitectura de redes, abarcando desde la capa física hasta la capa de aplicación en los modelos OSI y TCP/IP."},
+    {"title": "Database System Concepts", "author": "Abraham Silberschatz", "total_stock": 10, "synopsis": "Teoría de bases de datos relacionales, normalización, transacciones ACID, control de concurrencia y arquitecturas NoSQL."},
+    {"title": "Ingeniería de Software", "author": "Ian Sommerville", "total_stock": 15, "synopsis": "Guía completa de procesos de desarrollo, requisitos, arquitectura, validación y evolución de sistemas críticos."},
+    {"title": "Mecánica de Materiales", "author": "R.C. Hibbeler", "total_stock": 12, "synopsis": "Estudio analítico de esfuerzos, deformaciones y torsión en elementos estructurales, fundamental para ingeniería civil y mecánica."},
+    {"title": "Cálculo de una variable", "author": "James Stewart", "total_stock": 20, "synopsis": "Conceptos de límites, derivadas, integrales y sus aplicaciones en física e ingeniería."},
+    {"title": "Física Universitaria", "author": "Sears y Zemansky", "total_stock": 18, "synopsis": "Mecánica clásica, electromagnetismo, óptica y termodinámica con enfoque matemático avanzado."},
+    {"title": "Saber ver la arquitectura", "author": "Bruno Zevi", "total_stock": 6, "synopsis": "Ensayo sobre la percepción espacial, urbanismo y la comprensión estética de los espacios arquitectónicos."},
+    {"title": "Investigación de Operaciones", "author": "Hamdy A. Taha", "total_stock": 10, "synopsis": "Modelado matemático, programación lineal, teoría de colas e inventarios para la optimización de procesos industriales."},
+    {"title": "Cien Años de Soledad", "author": "Gabriel García Márquez", "total_stock": 25, "synopsis": "Realismo mágico en Macondo. La estirpe de los Buendía y su destino trágico y solitario."},
+    {"title": "1984", "author": "George Orwell", "total_stock": 20, "synopsis": "Distopía sobre el Gran Hermano, la vigilancia totalitaria y la manipulación de la verdad en Oceanía."},
+    {"title": "Sapiens: De animales a dioses", "author": "Yuval Noah Harari", "total_stock": 15, "synopsis": "Historia de la humanidad desde la prehistoria hasta el futuro tecnológico y la revolución cognitiva."}
 ]
 
-STUDENTS_DATA = [
-    {"user": {"username": "carlos.perez", "first_name": "Carlos", "last_name": "Pérez"}, "student": {"personal_id": "01020304051", "career": "Informática", "academic_year": 3, "is_blacklisted": False}},
-    {"user": {"username": "ana.gomez", "first_name": "Ana", "last_name": "Gómez"}, "student": {"personal_id": "99080706052", "career": "Arquitectura", "academic_year": 2, "is_blacklisted": False}},
-    {"user": {"username": "luis.martinez", "first_name": "Luis", "last_name": "Martínez"}, "student": {"personal_id": "02040608013", "career": "Medicina", "academic_year": 4, "is_blacklisted": False}},
-    {"user": {"username": "el.moroso", "first_name": "Pedro", "last_name": "Mala-Paga"}, "student": {"personal_id": "88080808088", "career": "Derecho", "academic_year": 5, "is_blacklisted": True}},
-    {"user": {"username": "deudora.pro", "first_name": "Marta", "last_name": "Sancionada"}, "student": {"personal_id": "77070707077", "career": "Psicología", "academic_year": 1, "is_blacklisted": True}},
-]
+def generar_ci_valido(start_year, end_year):
+    start_date = datetime.date(start_year, 1, 1)
+    end_date = datetime.date(end_year, 12, 31)
+    dias_totales = (end_date - start_date).days
+    random_date = start_date + datetime.timedelta(days=random.randint(0, dias_totales))
+    y = f"{random_date.year % 100:02d}"
+    m = f"{random_date.month:02d}"
+    d = f"{random_date.day:02d}"
+    rest = f"{random.randint(0, 99999):05d}"
+    return f"{y}{m}{d}{rest}"
 
-TEACHERS_DATA = [
-    {"user": {"username": "profe.juan", "first_name": "Juan", "last_name": "Profesor"}, "teacher": {"personal_id": "60010101011", "department": "Ciencias de la Computación", "is_blacklisted": False}},
-    {"user": {"username": "profe.maria", "first_name": "María", "last_name": "Docente"}, "teacher": {"personal_id": "70020202022", "department": "Matemática Aplicada", "is_blacklisted": False}},
-]
+def clean_text(text):
+    import unicodedata
+    return ''.join(c for c in unicodedata.normalize('NFD', text) if unicodedata.category(c) != 'Mn').lower()
 
 class Command(BaseCommand):
-    help = 'Puebla la base de datos de manera segura, respetando reglas de negocio.'
+    help = 'Puebla la base de datos masivamente para el Dashboard.'
 
     def handle(self, *args, **kwargs):
-        self.stdout.write("Borrando datos anteriores de forma segura...")
+        self.stdout.write(self.style.WARNING("⏳ Borrando la base de datos completa..."))
         Loan.objects.all().delete()
         Student.objects.all().delete()
         Teacher.objects.all().delete()
         Book.objects.all().delete()
-        
-        # Eliminar usuarios anteriores
-        usernames_to_delete = [s['user']['username'] for s in STUDENTS_DATA] + \
-                              [t['user']['username'] for t in TEACHERS_DATA] + \
-                              ['admin.sistema', 'supervisor1', 'biblio1', 'biblio2']
-        User.objects.filter(username__in=usernames_to_delete).delete()
+        User.objects.filter(is_superuser=False).delete()
 
-        # ---------------------------------------------------------
-        # 1. ROLES DEL SISTEMA Y NEGOCIO
-        # ---------------------------------------------------------
-        self.stdout.write("Creando Roles Administrativos y de Negocio...")
-        grupo_admin, _ = Group.objects.get_or_create(name='Administradores')
-        grupo_sup, _ = Group.objects.get_or_create(name='Supervisores')
-        grupo_bib, _ = Group.objects.get_or_create(name='Bibliotecarios')
+        # ==========================================
+        # FASE 1: ROLES
+        # ==========================================
+        self.stdout.write("🛡️ Configurando Grupos y Personal...")
+        g_admin, _ = Group.objects.get_or_create(name='Administradores')
+        g_bib, _ = Group.objects.get_or_create(name='Bibliotecarios')
 
-        # Admin de Sistemas (Informático - No entra al negocio)
-        admin_sys = User.objects.create_user(username='admin.sistema', password='password123', first_name='Admin', last_name='Sistemas', is_staff=True, is_superuser=False)
-        admin_sys.groups.add(grupo_admin)
+        admin_sys = User.objects.create_user(username='admin.it', password='password123', first_name='Soporte', last_name='Técnico', is_staff=True)
+        admin_sys.groups.add(g_admin)
 
-        # Supervisor (Director)
-        sup = User.objects.create_user(username='supervisor1', password='password123', first_name='Jefe', last_name='Supervisor', is_staff=True)
-        sup.groups.add(grupo_sup)
-
-        # Bibliotecarios
-        for i in range(1, 3):
+        for i in range(1, 4):
             bib = User.objects.create_user(username=f'biblio{i}', password='password123', first_name=f'Biblio{i}', last_name='Staff', is_staff=True)
-            bib.groups.add(grupo_bib)
+            bib.groups.add(g_bib)
 
-        # ---------------------------------------------------------
-        # 2. LIBROS
-        # ---------------------------------------------------------
-        self.stdout.write("Creando libros con puntaje de IA...")
+        # ==========================================
+        # FASE 2: LIBROS
+        # ==========================================
+        self.stdout.write("📚 Insertando Catálogo de Libros...")
         books = []
         for data in BOOKS_DATA:
-            data['ai_recommendations_count'] = random.randint(0, 30)
-            book = Book.objects.create(**data)
-            books.append(book)
-        
-        # ---------------------------------------------------------
-        # 3. ESTUDIANTES Y PROFESORES
-        # ---------------------------------------------------------
-        self.stdout.write("Creando Estudiantes y Profesores...")
+            data['ai_recommendations_count'] = random.randint(5, 80)
+            books.append(Book.objects.create(**data))
+
+        # ==========================================
+        # FASE 3: ESTUDIANTES (CARRERAS VARIADAS)
+        # ==========================================
+        self.stdout.write("🎓 Matriculando 50 estudiantes de la CUJAE...")
         students = []
-        for data in STUDENTS_DATA:
-            u = User.objects.create_user(
-                username=data['user']['username'],
-                password=data['student']['personal_id'], # Contraseña = Carnet
-                first_name=data['user']['first_name'],
-                last_name=data['user']['last_name']
-            )
+        for _ in range(50):
+            fname = random.choice(NOMBRES)
+            lname = random.choice(APELLIDOS)
+            username = f"{clean_text(fname)}.{clean_text(lname)}{random.randint(1,99)}"
+            ci = generar_ci_valido(1998, 2005)
+            
+            u = User.objects.create_user(username=username, password=ci, first_name=fname, last_name=lname, email=f"{username}@cujae.edu.cu")
+            
+            # CREADOS DIRECTAMENTE EN EL MODELO PARA EVITAR EL FORMULARIO
             student = Student.objects.create(
                 user=u,
-                personal_id=data['student']['personal_id'],
-                career=data['student']['career'],
-                academic_year=data['student']['academic_year'],
-                is_blacklisted=data['student']['is_blacklisted']
+                personal_id=ci,
+                career=random.choice(CUJAE_CAREERS),  # ¡Ahora sí tendrán carreras distintas!
+                academic_year=random.randint(1, 5),
+                is_blacklisted=random.random() < 0.10
             )
             students.append(student)
 
+        # ==========================================
+        # FASE 4: PROFESORES
+        # ==========================================
+        self.stdout.write("👨‍🏫 Contratando Profesores...")
         teachers = []
-        for data in TEACHERS_DATA:
-            u = User.objects.create_user(
-                username=data['user']['username'],
-                password=data['teacher']['personal_id'], # Contraseña = Carnet
-                first_name=data['user']['first_name'],
-                last_name=data['user']['last_name']
-            )
+        for _ in range(15):
+            fname = random.choice(NOMBRES)
+            lname = random.choice(APELLIDOS)
+            username = f"prof.{clean_text(fname)}.{clean_text(lname)}{random.randint(1,99)}"
+            ci = generar_ci_valido(1965, 1990)
+            
+            u = User.objects.create_user(username=username, password=ci, first_name=fname, last_name=lname)
             teacher = Teacher.objects.create(
-                user=u,
-                personal_id=data['teacher']['personal_id'],
-                department=data['teacher']['department'],
-                is_blacklisted=data['teacher']['is_blacklisted']
+                user=u, personal_id=ci, department=random.choice(DEPARTMENTS), is_blacklisted=random.random() < 0.05
             )
             teachers.append(teacher)
 
-        # ---------------------------------------------------------
-        # 4. PRÉSTAMOS E HISTORIAL (CON BLINDAJE DE VALIDACIÓN)
-        # ---------------------------------------------------------
-        self.stdout.write("Generando préstamos...")
-        today = date.today()
-        tomorrow = today + timedelta(days=5) # Fecha segura para pasar validación
-
-        # A. Casos de lista negra: Pedro y Marta
-        pedro = students[3]
-        pedro.is_blacklisted = False; pedro.save() # Temporalmente limpio para asignarle la mora
+        # ==========================================
+        # FASE 5: PRÉSTAMOS CON BULK_CREATE (BYPASS DE REGLAS)
+        # ==========================================
+        self.stdout.write("📈 Generando 350 préstamos históricos...")
+        today = datetime.date.today()
+        lectores = students + teachers
         
-        # Creamos como activo para que pase validación
-        l1 = Loan.objects.create(book=books[0], student=pedro, status='ACTIVE', expected_return_date=tomorrow)
-        # Usamos update para forzar fechas pasadas sin disparar clean()
-        Loan.objects.filter(pk=l1.pk).update(loan_date=today - timedelta(days=150), expected_return_date=today - timedelta(days=120), status='OVERDUE')
-        
-        pedro.is_blacklisted = True; pedro.save() # Sancionado
+        # Diccionario para llevar el control del stock físico nosotros mismos
+        stock_virtual = {book.id: book.total_stock for book in books}
+        prestamos_a_insertar = []
 
-        # B. Generar préstamos para estudiantes sanos
-        for student in students:
-            if student.is_blacklisted: continue
-            
-            num_loans = random.randint(2, 5)
-            for _ in range(num_loans):
-                book = random.choice(books)
-                
-                if book.available_stock > 0:
-                    if random.random() < 0.7:
-                        # Préstamo Devuelto (Histórico)
-                        l = Loan.objects.create(book=book, student=student, status='ACTIVE', expected_return_date=tomorrow)
-                        dias_atras = random.randint(30, 180)
-                        Loan.objects.filter(pk=l.pk).update(
-                            loan_date=today - timedelta(days=dias_atras),
-                            expected_return_date=today - timedelta(days=dias_atras - 15),
-                            actual_return_date=today - timedelta(days=dias_atras - 10),
-                            status='RETURNED'
-                        )
-                    else:
-                        # Préstamo Activo
-                        Loan.objects.create(book=book, student=student, status='ACTIVE', expected_return_date=today + timedelta(days=random.randint(1, 15)))
-
-        # C. Generar préstamos para profesores
-        for teacher in teachers:
+        for _ in range(350):
+            lector = random.choice(lectores)
             book = random.choice(books)
-            if book.available_stock > 0:
-                Loan.objects.create(book=book, teacher=teacher, status='ACTIVE', expected_return_date=today + timedelta(days=30))
+            
+            dias_atras = random.randint(1, 360)
+            fecha_prestamo = today - datetime.timedelta(days=dias_atras)
+            fecha_esperada = fecha_prestamo + datetime.timedelta(days=15)
+            
+            # Lógica de probabilidad
+            if dias_atras > 20: 
+                if random.random() < 0.90:
+                    status = 'RETURNED'
+                    fecha_real = fecha_prestamo + datetime.timedelta(days=random.randint(5, 15))
+                else:
+                    status = 'OVERDUE'
+                    fecha_real = None
+            else:
+                if random.random() < 0.70:
+                    status = 'ACTIVE'
+                    fecha_real = None
+                else:
+                    status = 'RETURNED'
+                    fecha_real = fecha_prestamo + datetime.timedelta(days=random.randint(1, dias_atras))
 
-        self.stdout.write(self.style.SUCCESS("✅ ¡Base de datos poblada exitosamente!"))
-        self.stdout.write(self.style.WARNING("▶ Supervisor, Bibliotecarios y Admin IT pass: password123"))
-        self.stdout.write(self.style.WARNING("▶ Estudiantes y Profesores pass: SU CARNÉ DE IDENTIDAD"))
+            # Verificar si hay stock antes de crear un ACTIVO o MORA
+            if status in ['ACTIVE', 'OVERDUE']:
+                if stock_virtual[book.id] > 0:
+                    stock_virtual[book.id] -= 1
+                else:
+                    # Si no hay stock, forzamos a que el préstamo sea DEVUELTO históricamente
+                    status = 'RETURNED'
+                    fecha_real = fecha_prestamo + datetime.timedelta(days=10)
+
+            # Instanciamos el modelo SIN usar .create() ni .save() para evitar el clean()
+            loan = Loan(
+                book=book,
+                status=status,
+                loan_date=fecha_prestamo,
+                expected_return_date=fecha_esperada,
+                actual_return_date=fecha_real
+            )
+            
+            if isinstance(lector, Student):
+                loan.student = lector
+            else:
+                loan.teacher = lector
+                
+            prestamos_a_insertar.append(loan)
+
+        # ¡EL TRUCO DE MAGIA! Inserción directa en SQL saltando validaciones de Django
+        Loan.objects.bulk_create(prestamos_a_insertar)
+
+        self.stdout.write(self.style.SUCCESS("✅ ¡SISTEMA POBLADO CON ÉXITO!"))
+        self.stdout.write(self.style.WARNING("====================================="))
+        self.stdout.write(self.style.WARNING("  Admin IT: admin.it / password123"))
+        self.stdout.write(self.style.WARNING("  Bibliotecarios: biblio1 / password123"))
+        self.stdout.write(self.style.WARNING("  Lectores (Login): USERNAME o CI y contraseña CI"))
+        self.stdout.write(self.style.WARNING("====================================="))

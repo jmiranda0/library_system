@@ -27,37 +27,55 @@ class SearchResult(BaseModel):
 
 
 def _build_agent(model: str) -> Agent:
-    return Agent(
-        model=model,
-        output_type=SearchResult,
-        system_prompt=(
-            "Eres un motor de recuperación de información semántica para una "
-            "biblioteca universitaria académica. Tu función es conectar consultas "
-            "de usuarios con libros del catálogo y asignar una puntuación de relevancia.\n\n"
-            "CONTEXTO:\n"
-            "Los usuarios son estudiantes universitarios. Sus consultas pueden ser "
-            "formales ('libros sobre psicología forense') o informales ('algo cool "
-            "de aventuras', 'un libro que me enganche'). Debes interpretar ambos "
-            "estilos con igual efectividad.\n\n"
-            "CRITERIOS DE PUNTUACIÓN (escala 1-10):\n"
-            "- 10: el libro trata el tema directamente y de forma central.\n"
-            "- 7-9: el tema aparece de forma importante pero no es el eje principal.\n"
-            "- 4-6: relación indirecta, conceptual o parcial.\n"
-            "- 1-3: relación muy débil o tangencial.\n"
-            "Solo incluye libros que tengan alguna relación con la consulta.\n"
-            "No incluyas libros sin ninguna relación.\n\n"
-            "ÁREAS ACADÉMICAS VÁLIDAS:\n"
-            "Química, medicina, criminología, historia de conflictos, psicología forense "
-            "y cualquier disciplina universitaria son búsquedas completamente legítimas.\n\n"
-            "INSTRUCCIONES:\n"
-            "1. Lee la consulta e interpreta su intención real.\n"
-            "2. Evalúa cada libro del catálogo contra esa intención.\n"
-            "3. Devuelve solo los libros con alguna relación, con su puntuación.\n"
-            "4. Ordena de mayor a menor puntuación.\n"
-            "5. Sin texto explicativo. Solo el resultado estructurado."
-        ),
+    from django.conf import settings
+    
+    base_url = getattr(settings, 'AI_BASE_URL', None)
+    api_key = getattr(settings, 'AI_API_KEY', None)
+    
+    system_prompt = (
+        "Eres un motor de recuperación de información semántica para una "
+        "biblioteca universitaria académica. Tu función es conectar consultas "
+        "de usuarios con libros del catálogo y asignar una puntuación de relevancia.\n\n"
+        "CONTEXTO:\n"
+        "Los usuarios son estudiantes universitarios. Sus consultas pueden ser "
+        "formales ('libros sobre psicología forense') o informales ('algo cool "
+        "de aventuras', 'un libro que me enganche'). Debes interpretar ambos "
+        "estilos con igual efectividad.\n\n"
+        "CRITERIOS DE PUNTUACIÓN (escala 1-10):\n"
+        "- 10: el libro trata el tema directamente y de forma central.\n"
+        "- 7-9: el tema aparece de forma importante pero no es el eje principal.\n"
+        "- 4-6: relación indirecta, conceptual o parcial.\n"
+        "- 1-3: relación muy débil o tangencial.\n"
+        "Solo incluye libros que tengan alguna relación con la consulta.\n"
+        "No incluyas libros sin ninguna relación.\n\n"
+        "ÁREAS ACADÉMICAS VÁLIDAS:\n"
+        "Química, medicina, criminología, historia de conflictos, psicología forense "
+        "y cualquier disciplina universitaria son búsquedas completamente legítimas.\n\n"
+        "INSTRUCCIONES:\n"
+        "1. Lee la consulta e interpreta su intención real.\n"
+        "2. Evalúa cada libro del catálogo contra esa intención.\n"
+        "3. Devuelve solo los libros con alguna relación, con su puntuación.\n"
+        "4. Ordena de mayor a menor puntuación.\n"
+        "5. Sin texto explicativo. Solo el resultado estructurado."
     )
 
+    if base_url:
+        # Proveedor compatible con OpenAI — revendedor, Ollama, etc.
+        from pydantic_ai.models.openai import OpenAIChatModel
+        from pydantic_ai.providers.openai import OpenAIProvider
+
+        model_name = model.replace('openai-chat:', '').replace('openai:', '')
+        openai_model = OpenAIChatModel(
+            model_name,
+            provider=OpenAIProvider(
+                base_url=base_url,
+                api_key=api_key or 'no-key',
+            )
+        )
+        return Agent(openai_model, output_type=SearchResult, system_prompt=system_prompt)
+    else:
+        # Proveedor nativo — Gemini, Groq, etc.
+        return Agent(model=model, output_type=SearchResult, system_prompt=system_prompt)
 
 class SemanticSearchStrategy(SearchStrategy):
 

@@ -41,10 +41,19 @@ ALLOWED_HOSTS = []
 # ==========================================
 # Variables de entorno IA
 # ==========================================
-#GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
-#DEEPSEEK_API_KEY= os.environ.get('DEEPSEEK_API_KEY')
-GROQ_API_KEY= os.environ.get('GROQ_API_KEY')
+
 SEARCH_AI_MODEL = os.environ.get('SEARCH_AI_MODEL', '') or None
+AI_API_KEY = os.environ.get('AI_API_KEY', '') or None
+AI_BASE_URL = os.environ.get('AI_BASE_URL', '') or None
+
+# Propagar la key genérica al proveedor nativo correcto
+if AI_API_KEY and SEARCH_AI_MODEL:
+    if SEARCH_AI_MODEL.startswith('google'):
+        os.environ.setdefault('GEMINI_API_KEY', AI_API_KEY)
+    elif SEARCH_AI_MODEL.startswith('groq'):
+        os.environ.setdefault('GROQ_API_KEY', AI_API_KEY)
+
+
 
 # Application definition
 
